@@ -1,15 +1,15 @@
-#ifndef TABLE_FORMER_H
-#define TABLE_FORMER_H
+#ifndef TABLEFORMER_H
+#define TABLEFORMER_H
 
 #include <variant>
 #include "DataFrame/DataFrame.h"
 
 
-class table_former
+class TableFormer
 {
 public:
-    table_former();
-    ~table_former();
+    TableFormer();
+    ~TableFormer();
 
     void set_columns_without_names(int count);
     void set_columns_names(std::list<std::string> row_list);
@@ -31,4 +31,4 @@ protected:
     bool _is_has_index, _is_has_columns;
 };
 
-#endif // TABLE_FORMER_H
+#endif // TABLEFORMER_H

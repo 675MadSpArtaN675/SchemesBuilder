@@ -1,20 +1,20 @@
-#include "table_former.hpp"
+#include "tableformer.hpp"
 
 #include <boost/algorithm/string.hpp>
 
-table_former::table_former()
+TableFormer::TableFormer()
 {
     _start_row_num_index = 0;
     _is_has_index = false;
     _is_has_columns = false;
 }
 
-table_former::~table_former()
+TableFormer::~TableFormer()
 {
 
 }
 
-void table_former::set_columns_without_names(int count)
+void TableFormer::set_columns_without_names(int count)
 {
     for (int i = 0; i < count; i++)
     {
@@ -22,7 +22,7 @@ void table_former::set_columns_without_names(int count)
     }
 }
 
-void table_former::set_columns_names(std::list<std::string> row_list)
+void TableFormer::set_columns_names(std::list<std::string> row_list)
 {
     for (std::string column_name: row_list) {
         boost::algorithm::trim(column_name);
@@ -35,7 +35,7 @@ void table_former::set_columns_names(std::list<std::string> row_list)
     _is_has_columns = true;
 }
 
-void table_former::set_index_names(std::list<std::string> row_list)
+void TableFormer::set_index_names(std::list<std::string> row_list)
 {
     for (std::string index_name: row_list)
     {
@@ -49,7 +49,7 @@ void table_former::set_index_names(std::list<std::string> row_list)
     _is_has_index = true;
 }
 
-void table_former::add_row(std::list<std::string> row_list)
+void TableFormer::add_row(std::list<std::string> row_list)
 {
     std::string _index;
     std::vector<std::string> row(row_list.begin(), row_list.end());
@@ -90,7 +90,7 @@ void table_former::add_row(std::list<std::string> row_list)
     _start_row_num_index++;
 }
 
-std::vector<std::string> table_former::get_columns_names()
+std::vector<std::string> TableFormer::get_columns_names()
 {
     auto col_info = _creating_table.get_columns_info<std::string, int>();
     std::vector<std::string> _output;
@@ -104,12 +104,12 @@ std::vector<std::string> table_former::get_columns_names()
     return _output;
 }
 
-std::vector<std::string> table_former::get_row_indexes()
+std::vector<std::string> TableFormer::get_row_indexes()
 {
     return _creating_table.get_index();
 }
 
-hmdf::Matrix<int> table_former::to_matrix()
+hmdf::Matrix<int> TableFormer::to_matrix()
 {
     return _creating_table.get_matrix<int>();
 }
