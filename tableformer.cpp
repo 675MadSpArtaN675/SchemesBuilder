@@ -4,21 +4,26 @@
 
 TableFormer::TableFormer()
 {
-    _start_row_num_index = 0;
     _is_has_index = false;
     _is_has_columns = false;
 }
 
 TableFormer::~TableFormer()
-{
-
-}
+{ }
 
 void TableFormer::set_columns_without_names(int count)
 {
     for (int i = 0; i < count; i++)
     {
         _creating_table.create_column<int>(std::to_string(i).data());
+    }
+}
+
+void TableFormer::set_index_without_names(int count)
+{
+    for (int i = 0; i < count; i++)
+    {
+        _creating_table.append_index(std::to_string(i).data());
     }
 }
 
@@ -49,45 +54,73 @@ void TableFormer::set_index_names(std::list<std::string> row_list)
     _is_has_index = true;
 }
 
-void TableFormer::add_row(std::list<std::string> row_list)
+
+void TableFormer::add_row(int row_index, std::list<std::string> row_list)
 {
-    std::string _index;
-    std::vector<std::string> row(row_list.begin(), row_list.end());
-
-    if (_is_has_index)
-    {
-        _index = row_list.front();
-        row_list.pop_front();
-
-        _creating_table.append_index(_index);
-    }
-
-    int row_index = _start_row_num_index;
-    if (!_index.empty()) {
-        std::vector<std::string> indexes_rows = get_row_indexes();
-        auto item = std::find(indexes_rows.begin(), indexes_rows.end(), _index);
-
-        if (item != indexes_rows.end())
-        {
-            row_index = item - indexes_rows.begin();
-        }
-    }
-
     std::vector<std::string> col_names = get_columns_names();
     std::list<std::string>::iterator value_to_row = row_list.begin();
 
     for (std::string name : col_names) {
-        int value_ = std::stoi(*value_to_row);
-
-        _creating_table.get_column<int>(name.c_str())[row_index] = value_;
+        int value_ = 0;
 
         if (value_to_row != row_list.end())
         {
-           value_to_row++;
+            value_ = std::stoi(*value_to_row);
+            value_to_row++;
         }
-    };
 
-    _start_row_num_index++;
+        _creating_table.get_column<int>(name.c_str())[row_index] = value_;
+    };
+}
+
+void TableFormer::add_row(std::string row_index, std::list<std::string> row_list)
+{
+    int row_index_ = get_index_num(row_index);
+
+    if (row_index_ < 0)
+    {
+        _creating_table.append_index(row_index);
+
+        row_index_ = get_index_num(row_index);
+    }
+
+    add_row(row_index_, row_list);
+}
+
+void TableFormer::add_autoindexed_row(std::list<std::string> row_list)
+{
+    std::string row_index_ = row_list.front();
+    row_list.pop_front();
+
+    int row_index = get_index_num(row_index_);
+
+    add_row(row_index_, row_list);
+
+}
+
+int TableFormer::get_last_row_num()
+{
+    int last_index = _creating_table.get_index().size() - 1;
+
+    return last_index;
+}
+
+int TableFormer::get_new_row_num()
+{
+    return _creating_table.get_index().size();
+}
+
+int TableFormer::get_index_num(std::string index_str)
+{
+    std::vector<std::string> indexes = _creating_table.get_index();
+    std::vector<std::string>::iterator finded_index = std::find(indexes.begin(), indexes.end(), index_str);
+
+    if (finded_index != indexes.end())
+    {
+        return finded_index - indexes.begin();
+    }
+
+    return 0;
 }
 
 std::vector<std::string> TableFormer::get_columns_names()
@@ -102,11 +135,6 @@ std::vector<std::string> TableFormer::get_columns_names()
     });
 
     return _output;
-}
-
-std::vector<std::string> TableFormer::get_row_indexes()
-{
-    return _creating_table.get_index();
 }
 
 hmdf::Matrix<int> TableFormer::to_matrix()

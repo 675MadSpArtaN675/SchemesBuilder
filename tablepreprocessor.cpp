@@ -62,7 +62,14 @@ bool TablePreprocessor::validate_file()
         return false;
     }
 
-    return _opened_file.is_open();
+    calculate_lines();
+
+    return _opened_file.is_open() && !_lines_and_their_pos.empty();
+}
+
+bool TablePreprocessor::is_eof()
+{
+    return _opened_file.eof();
 }
 
 void TablePreprocessor::set_header_row(bool is_has_header)
@@ -103,6 +110,11 @@ std::list<std::string> TablePreprocessor::read_line()
 
 std::list<std::string> TablePreprocessor::read_line_num(int number)
 {
+    if (_lines_and_their_pos.empty())
+    {
+        calculate_lines();
+    }
+
     if (_opened_file.is_open() && _lines_and_their_pos.contains(number))
     {
         std::string _line;
@@ -129,6 +141,7 @@ std::list<std::string> TablePreprocessor::split_line_by_delimiter(std::string li
     std::for_each(_splitted_rows.begin(), _splitted_rows.end(), [](std::string& text){
        boost::algorithm::trim(text);
     });
+
     std::erase_if(_splitted_rows, [](std::string& text) { return text.empty(); });
 
     return _splitted_rows;

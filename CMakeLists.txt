@@ -22,9 +22,6 @@ qt_add_qml_module(appGraphPainter
     QML_FILES
         Main.qml
         TableLoadDialog.qml
-        SOURCES tablereader.hpp tablereader.cpp
-        SOURCES tablepreprocessor.hpp tablepreprocessor.cpp
-        SOURCES table_former.hpp table_former.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -42,7 +39,7 @@ target_link_libraries(appGraphPainter
     PRIVATE Qt6::Quick DataFrame
 )
 
-target_include_directories(appGraphPainter PRIVATE ${Boost_INCLUDE_DIR} ${DataFrame_INCLUDE_DIR}, "./")
+target_include_directories(appGraphPainter PRIVATE ${Boost_INCLUDE_DIR} ${DataFrame_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 
 install(TARGETS appGraphPainter
     BUNDLE DESTINATION .

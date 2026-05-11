@@ -25,6 +25,7 @@ public:
     bool is_index_has();
 
     bool validate_file();
+    bool is_eof();
 
     void set_header_row(bool is_has_header);
     void set_is_index(bool is_has_index);
