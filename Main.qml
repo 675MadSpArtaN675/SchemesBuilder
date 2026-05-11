@@ -102,16 +102,4 @@ Window {
             border.width: 2
         }
     }
-
-    TableLoadDialog {
-        id: tableLoadDialog
-        x: -39
-        y: 561
-    }
-
-    TableLoadDialog {
-        id: tableLoadDialog1
-        x: -39
-        y: 493
-    }
 }

@@ -4,16 +4,10 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 
-import TableReader
-
 Window {
     width: 650
     height: 480
     title: "Загрузка таблицы..."
-
-    TableReader {
-
-    }
 
     FileDialog {
         id: _file_getter
@@ -34,7 +28,7 @@ Window {
 
         text: "Обзор..."
 
-        clicked: _file_getter.open()
+        onClicked: _file_getter.open()
 
     }
 

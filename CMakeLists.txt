@@ -2,8 +2,10 @@ cmake_minimum_required(VERSION 3.16)
 
 project(GraphPainter VERSION 0.1 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+file(GLOB SOURCES_FILES "./*.cpp")
 
 find_package(Qt6 REQUIRED COMPONENTS Quick)
 find_package(Boost REQUIRED)
@@ -12,7 +14,7 @@ find_package(DataFrame REQUIRED)
 qt_standard_project_setup(REQUIRES 6.10)
 
 qt_add_executable(appGraphPainter
-    main.cpp
+    ${SOURCES_FILES}
 )
 
 qt_add_qml_module(appGraphPainter
@@ -22,6 +24,7 @@ qt_add_qml_module(appGraphPainter
         TableLoadDialog.qml
         SOURCES tablereader.hpp tablereader.cpp
         SOURCES tablepreprocessor.hpp tablepreprocessor.cpp
+        SOURCES table_former.hpp table_former.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -36,10 +39,10 @@ set_target_properties(appGraphPainter PROPERTIES
 )
 
 target_link_libraries(appGraphPainter
-    PRIVATE Qt6::Quick Boost DataFrame
+    PRIVATE Qt6::Quick DataFrame
 )
 
-target_include_directories(appGraphPainter PRIVATE ${Boost_INCLUDE_DIR} ${DataFrame_INCLUDE_DIR})
+target_include_directories(appGraphPainter PRIVATE ${Boost_INCLUDE_DIR} ${DataFrame_INCLUDE_DIR}, "./")
 
 install(TARGETS appGraphPainter
     BUNDLE DESTINATION .
