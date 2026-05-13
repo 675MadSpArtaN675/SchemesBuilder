@@ -2,6 +2,7 @@
 #define TABLEFORMER_H
 
 #include <variant>
+
 #include "DataFrame/DataFrame.h"
 
 
@@ -9,6 +10,7 @@ class TableFormer
 {
 public:
     TableFormer();
+    TableFormer(const TableFormer& other);
     ~TableFormer();
 
     void set_columns_without_names(int count);
@@ -27,7 +29,10 @@ public:
     int get_last_row_num();
     int get_new_row_num();
 
+    void clear();
     hmdf::Matrix<int> to_matrix();
+
+    TableFormer& operator=(const TableFormer& other);
 
 protected:
     int get_index_num(std::string index_str);
@@ -36,7 +41,6 @@ protected:
 
     hmdf::StdDataFrame<index_type> _creating_table;
 
-    int _start_row_num_index = 0;
     bool _is_has_index, _is_has_columns;
 };
 

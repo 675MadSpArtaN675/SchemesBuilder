@@ -5,6 +5,7 @@ project(GraphPainter VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+file(GLOB HEADER_FILES "./*.hpp" "./*.h" )
 file(GLOB SOURCES_FILES "./*.cpp")
 
 find_package(Qt6 REQUIRED COMPONENTS Quick)
@@ -15,6 +16,7 @@ qt_standard_project_setup(REQUIRES 6.10)
 
 qt_add_executable(appGraphPainter
     ${SOURCES_FILES}
+    ${HEADER_FILES}
 )
 
 qt_add_qml_module(appGraphPainter

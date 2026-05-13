@@ -1,13 +1,23 @@
-import QtCore
+import QtQml
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 
+import TableReader
+
 Window {
     width: 650
     height: 480
     title: "Загрузка таблицы..."
+
+    TableReader {
+        id: file_reader
+
+        is_index_need: (is_index_read.checkState == Qt.Checked) ? true : false
+        is_header_need: (is_col_titles_read.checkState == Qt.Checked) ? true : false
+    }
 
     FileDialog {
         id: _file_getter
@@ -15,6 +25,12 @@ Window {
 
         fileMode: FileDialog.OpenFile
         nameFilters: ["Text File (*.txt, *.dat)"]
+
+        onAccepted: function() {
+            let folder_current = _file_getter.currentFile;
+
+            file_reader.parse_file(folder_current);
+        }
     }
 
     RoundButton {
@@ -123,6 +139,24 @@ Window {
         width: 136
         height: 34
         text: "Построить"
+
+        onClicked: function() {
+            let parsed_data = file_reader.get_table();
+        }
+    }
+
+    CheckBox {
+        id: is_index_read
+        x: 421
+        y: 157
+        text: "Читать заголовки строк?"
+    }
+
+    CheckBox {
+        id: is_col_titles_read
+        x: 421
+        y: 185
+        text: "Читать заголовки столбцов?"
     }
 
 }

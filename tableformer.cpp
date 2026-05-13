@@ -11,6 +11,14 @@ TableFormer::TableFormer()
 TableFormer::~TableFormer()
 { }
 
+TableFormer::TableFormer(const TableFormer& other)
+{
+    _is_has_index = other._is_has_index;
+    _is_has_columns = other._is_has_columns;
+
+    _creating_table = other._creating_table;
+}
+
 void TableFormer::set_columns_without_names(int count)
 {
     for (int i = 0; i < count; i++)
@@ -137,7 +145,26 @@ std::vector<std::string> TableFormer::get_columns_names()
     return _output;
 }
 
+
+void TableFormer::clear()
+{
+    _creating_table.clear();
+
+    _is_has_index = false;
+    _is_has_columns = false;
+}
+
 hmdf::Matrix<int> TableFormer::to_matrix()
 {
     return _creating_table.get_matrix<int>();
+}
+
+TableFormer& TableFormer::operator=(const TableFormer& other)
+{
+    _is_has_index = other._is_has_index;
+    _is_has_columns = other._is_has_columns;
+
+    _creating_table = other._creating_table;
+
+    return *this;
 }

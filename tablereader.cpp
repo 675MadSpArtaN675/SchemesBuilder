@@ -1,12 +1,14 @@
 #include "tablereader.hpp"
 
+#include "DataFrame/Utils/Matrix.h"
+
 #include <boost/algorithm/string.hpp>
 
 TableReader::TableReader(QObject *parent)
     : QObject{parent}
 { }
 
-void TableReader::parse_file(QString file_path)
+QList<QList<int>> TableReader::parse_file(QString file_path)
 {
     std::string filename = file_path.toStdString();
 
@@ -14,7 +16,7 @@ void TableReader::parse_file(QString file_path)
 
     if (_table_preprocessor.validate_file())
     {
-        TableFormer _table_former;
+        _table_former.clear();
 
         bool is_first_line = true;
         while (_table_preprocessor.is_eof())
@@ -50,6 +52,7 @@ void TableReader::parse_file(QString file_path)
             }
         }
 
+        _last_file = file_path;
         _table_preprocessor.close();
     }
     else
@@ -57,7 +60,38 @@ void TableReader::parse_file(QString file_path)
         _table_preprocessor.close();
     }
 
-    return;
+    return get_table();
+}
+
+QList<QList<int>> TableReader::parse_file(QUrl file_path)
+{
+    QString file_path_str = file_path.toString();
+    file_path_str = file_path_str.replace(QRegularExpression("^(file|qrc):///"), QString(""));
+
+    return parse_file(file_path_str);
+}
+
+QList<QList<int>> TableReader::get_table()
+{
+    hmdf::Matrix mat = _table_former.to_matrix();
+    int column_count = mat.cols();
+
+    QList<QList<int>> result;
+    for (auto i = mat.row_cbegin(); i != mat.row_cend(); i++)
+    {
+        hmdf::Matrix<int>::row_const_iterator::const_pointer _ref = i;
+
+        QList<int> _row;
+        for (int j = 0; j < column_count; j++)
+        {
+            int element = *(_ref + j);
+            _row.push_back(element);
+        }
+
+        result.push_back(_row);
+    }
+
+    return result;
 }
 
 void TableReader::set_delimiter(QString delimiter)

@@ -3,6 +3,10 @@
 
 #include <QObject>
 #include <QList>
+#include <QUrl>
+#include <QString>
+#include <QRegularExpression>
+#include <DataFrame/DataFrame.h>
 
 #include "tableformer.hpp"
 #include "tablepreprocessor.hpp"
@@ -20,7 +24,9 @@ class TableReader : public QObject
 public:
     explicit TableReader(QObject *parent = nullptr);
 
-    void parse_file(QString file_path);
+    Q_INVOKABLE QList<QList<int>> parse_file(QString file_path);
+    Q_INVOKABLE QList<QList<int>> parse_file(QUrl file_path);
+    Q_INVOKABLE QList<QList<int>> get_table();
 
     void set_delimiter(QString delimiter);
     QString get_delimiter();
@@ -38,6 +44,7 @@ protected:
     bool _is_header_need, _is_index_need;
 
     TablePreprocessor _table_preprocessor;
+    TableFormer _table_former;
 };
 
 #endif // TABLEREADER_HPP
