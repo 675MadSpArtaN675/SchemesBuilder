@@ -9,7 +9,7 @@ GraphBuilder::GraphBuilder() : GraphBuilder(STANDART_GRAPH_NAME)
 GraphBuilder::GraphBuilder(QString name) : _name{name}, CoreLogger()
 { }
 
-GraphBuilder::GraphBuilder(GraphBuilder &other_builder)
+GraphBuilder::GraphBuilder(const GraphBuilder &other_builder)
 {
     _name = other_builder._name;
     _nodes_links = other_builder._nodes_links;
@@ -253,6 +253,24 @@ graph_data GraphBuilder::build()
     }
 
     throw std::runtime_error("Graph has no any nodes!");
+}
+
+GraphBuilder &GraphBuilder::operator=(const GraphBuilder &_other)
+{
+    _name = _other._name;
+    _nodes_links = _other._nodes_links;
+    _temp_nodes = _other._temp_nodes;
+
+    return *this;
+}
+
+GraphBuilder& GraphBuilder::operator=(const GraphBuilder&& _other)
+{
+    _name = std::move(_other._name);
+    _nodes_links = std::move(_other._nodes_links);
+    _temp_nodes = std::move(_other._temp_nodes);
+
+    return *this;
 }
 
 QString GraphBuilder::name() const

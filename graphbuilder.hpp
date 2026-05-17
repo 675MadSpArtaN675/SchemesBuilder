@@ -17,7 +17,7 @@ class GraphBuilder : protected CoreLogger
 {
     Q_GADGET
     Q_PROPERTY(QString name READ name WRITE setName)
-    Q_PROPERTY(graph_data* READ last_created)
+    Q_PROPERTY(graph_data* last_created_graph READ last_created)
 
 public:
     using vector2d = std::vector<std::vector<int>>;
@@ -25,7 +25,7 @@ public:
 
     GraphBuilder();
     GraphBuilder(QString _name);
-    GraphBuilder(GraphBuilder& other_builder);
+    GraphBuilder(const GraphBuilder& other_builder);
     GraphBuilder(GraphBuilder&& other_builder);
     ~GraphBuilder();
 
@@ -47,7 +47,7 @@ public:
     Q_INVOKABLE graph_data build();
 
     GraphBuilder& operator=(const GraphBuilder& _other);
-    GraphBuilder& operator=(GraphBuilder&& _other);
+    GraphBuilder& operator=(const GraphBuilder&& _other);
 
     QString name() const;
     void setName(const QString &newName);

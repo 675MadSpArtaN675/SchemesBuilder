@@ -7,13 +7,12 @@
 GraphPainter::GraphPainter() : GraphPainter(nullptr, nullptr)
 {}
 
-GraphPainter::GraphPainter(QWidget* widget, graph_data* graph, GraphOptions* options) : _widget(widget), _graph_to_transform(graph), _options(options), CoreLogger()
+GraphPainter::GraphPainter(graph_data* graph, GraphOptions* options) : _graph_to_transform(graph), _options(options), CoreLogger()
 { }
 
 GraphPainter::GraphPainter(GraphPainter &&other)
 {
     _graph_to_transform = std::move(other._graph_to_transform);
-    _widget = std::move(other._widget);
     _options = std::move(other._options);
 
     _graph_table = std::move(_graph_table);
@@ -111,16 +110,6 @@ graph_data* GraphPainter::graph_to_transform() const
 void GraphPainter::set_graph_to_transform(graph_data* new_graph_to_transform)
 {
     _graph_to_transform.reset(std::move(new_graph_to_transform));
-}
-
-QWidget *GraphPainter::parent_widget()
-{
-    return _widget.get();
-}
-
-void GraphPainter::set_parent_widget(QWidget *widget)
-{
-    _widget.reset(widget);
 }
 
 GraphOptions::GraphOptions(double _text_box_w, double _text_box_h, double _distance, double _height)

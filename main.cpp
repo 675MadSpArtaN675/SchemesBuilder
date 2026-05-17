@@ -21,7 +21,7 @@ namespace sk = boost::log::sinks;
 
 struct null_deleter
 {
-    void operator()(const boost::shared_ptr<std::ostream>& ptr)
+    void operator()(const std::ostream* ptr)
     { }
 };
 

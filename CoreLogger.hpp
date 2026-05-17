@@ -27,7 +27,7 @@ public:
 
     }
 
-    void log(std::string message)
+    void log(std::string message) const
     {
         *_ostream << message;
         _ostream->flush();
@@ -38,19 +38,18 @@ protected:
     requires std::integral<T>
     std::string join_list(QList<T> _strings, std::string delimiter)
     {
-        std::string _result;
-
-        std::transform_reduce(_strings.begin(), _strings.end(), std::back_inserter(_result),
-                            [delimiter](std::string& par_1, std::string& par_2){
-                                return par_1 + delimiter + par_2;
-                            },
+        std::vector<std::string> pre_result;
+        std::transform(_strings.begin(), _strings.end(), std::back_inserter(pre_result),
                             [](T par){
                                 return std::to_string(par);
                             }
         );
+        std::string _result = std::reduce(pre_result.begin(), pre_result.end(), std::string(),
+                    [delimiter](const std::string& s1, const std::string& s2){ return s1 + delimiter + s2; });
 
         return _result;
     }
+
     boost::log::record _rec;
     boost::log::core_ptr _logger;
 

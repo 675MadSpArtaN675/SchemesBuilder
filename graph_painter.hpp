@@ -26,10 +26,9 @@ class GraphPainter : public QObject, protected CoreLogger
 {
     Q_OBJECT
     Q_PROPERTY(graph_data* graph_to_transform READ graph_to_transform WRITE set_graph_to_transform)
-    Q_PROPERTY(QWidget* where_paint READ parent_widget WRITE set_parent_widget)
 
 public:
-    GraphPainter(QWidget* _widget, graph_data* _graph, GraphOptions* _options = nullptr);
+    GraphPainter(graph_data* _graph, GraphOptions* _options = nullptr);
     GraphPainter();
     GraphPainter(GraphPainter&& other);
 
@@ -47,7 +46,6 @@ protected:
     QQuickWidget* create_box(GraphNode _node, QString descr = QString(), QWidget* parent = nullptr);
 
     std::unique_ptr<graph_data> _graph_to_transform;
-    std::unique_ptr<QWidget> _widget;
 
     QList<QList<int>> _graph_table;
     std::unique_ptr<GraphOptions> _options;

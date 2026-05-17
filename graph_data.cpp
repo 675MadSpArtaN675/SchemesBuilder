@@ -94,6 +94,8 @@ void graph_data::add_vertex(GraphNode &&_node, QList<unsigned int> connected_ver
 
 QSharedPointer<GraphNode> graph_data::get_vertex(unsigned int node_num) const
 {
+    reindex_vertexes_numbers();
+
     if (_nodes.contains(node_num)) {
         return _nodes[node_num];
     }
@@ -103,15 +105,37 @@ QSharedPointer<GraphNode> graph_data::get_vertex(unsigned int node_num) const
 
 QSharedPointer<GraphNode> graph_data::get_vertex(QString node_name) const
 {
-    for (const QSharedPointer<GraphNode>& item : _nodes.values())
+    reindex_vertexes_numbers();
+    auto finded_obj = std::find_if(_nodes.values().begin(), _nodes.values().end(),
+                 [&node_name](const QSharedPointer<GraphNode>& _node){ return _node->get_name() == node_name; });
+
+    if (finded_obj != _nodes.values().end())
     {
-        if (item->get_name() == node_name)
-        {
-            return item;
-        }
+        return *finded_obj;
     }
 
     return nullptr;
+}
+
+void graph_data::remove_vertex(unsigned int num)
+{
+    reindex_vertexes_numbers();
+    if (_nodes.contains(num))
+    {
+        _nodes.remove(num);
+    }
+}
+
+void graph_data::remove_vertex(QString node_name)
+{
+    reindex_vertexes_numbers();
+    auto finded_obj = std::find_if(_nodes.values().begin(), _nodes.values().end(),
+                 [&node_name](const QSharedPointer<GraphNode>& _node){ return _node->get_name() == node_name; });
+
+    if (finded_obj != _nodes.values().end())
+    {
+        _nodes.remove((*finded_obj)->get_number());
+    }
 }
 
 void graph_data::transform_links(QList<QList<int>>& _links)
@@ -163,17 +187,41 @@ void graph_data::connect_vertexes_to_vertex(unsigned int first_vertex, QList<uns
 
 QList<unsigned int> graph_data::get_nodes_numbers() const
 {
+    reindex_vertexes_numbers();
     return _nodes.keys();
 }
 
-void graph_data::recalculate_vertexes_numbers()
+void graph_data::reindex_vertexes_numbers() const
 {
-    QList<unsigned int> keys_in_nodes = _nodes.keys();
-
-    for (int i = 1; i <= keys_in_nodes.size(); i++)
+    QList<unsigned int> indexes = _nodes.keys();
+    for (QPair<unsigned int, QSharedPointer<GraphNode>> _pair : _nodes.asKeyValueRange())
     {
+        unsigned int index = _pair.first;
+        QSharedPointer<GraphNode> _node = _pair.second;
+        unsigned int real_index = _node->get_number();
 
+        if (index != real_index && !_nodes.contains(real_index))
+        {
+            _nodes[real_index] = _node;
+        }
+        else if (_nodes.contains(real_index))
+        {
+            int free_index = get_min_free_index(indexes);
+            _node->set_number(free_index);
+            _nodes[free_index] = _node;
+        }
     }
+
+    for (const QSharedPointer<GraphNode>& node : _nodes.values())
+    {
+        node->reindex_connected_nodes();
+    }
+}
+
+void graph_data::set_additional_data_to_vertex(unsigned int node_num, QVariant _additional_data)
+{
+    if (_nodes.contains(node_num))
+        _nodes[node_num]->set_additional_data(_additional_data);
 }
 
 QList<QSharedPointer<GraphNode>> graph_data::bfs(unsigned int start_node, std::function<void(QSharedPointer<GraphNode>, int)> node_performer)
@@ -228,163 +276,45 @@ graph_data &graph_data::operator=(const graph_data &other)
     return *this;
 }
 
-int graph_data::get_min_free_index()
-{
-    for (int i = 1; i <= _nodes.size(); i++)
-    {
-        if (!_nodes.contains(i))
-        {
-            log("Min free index = " + std::to_string(i));
-            return i;
-        }
-    }
-
-    log("Min free index = " + std::to_string(_nodes.size() + 1));
-    return _nodes.size() + 1;
-}
-
-GraphNode GraphNode::create(unsigned int node_num, QString name)
-{
-    return GraphNode(node_num, name);
-}
-
-GraphNode GraphNode::create(unsigned int node_num, QString name, QMap<unsigned int, QWeakPointer<GraphNode> > &_nodes)
-{
-    GraphNode _node(node_num, name);
-
-    for (QWeakPointer<GraphNode>& num_value : _nodes.values())
-    {
-        _node.connect_node(num_value);
-    }
-
-    return _node;
-}
-
-GraphNode::GraphNode(unsigned int node_num, QString node_name_)  : node_name{node_name_}, nodes{}, CoreLogger()
-{
-    if (node_num == 0)
-    {
-        node_number = 1;
-    }
-    else
-    {
-        node_number = node_num;
-    }
-
-    log((boost::format("Create %d with name %s") % node_number % node_name_.toStdString()).str());
-}
-
-GraphNode::GraphNode(const GraphNode &other)
-{
-    log((boost::format("Copying %d with name %s") % other.node_number % other.node_name.toStdString()).str());
-
-    node_name = other.node_name;
-    node_number = other.node_number;
-    nodes = other.nodes;
-}
-
-GraphNode::GraphNode(const GraphNode &&other)
-{
-    log((boost::format("Moving %d with name %s") % other.node_number % other.node_name.toStdString()).str());
-
-    node_name = std::move(other.node_name);
-    node_number = std::move(other.node_number);
-    nodes = std::move(other.nodes);
-}
-
-GraphNode::~GraphNode()
-{
-    log("Destroying node #" + std::to_string(node_number));
-
-    nodes.clear();
-}
 
 
-void GraphNode::connect_node(QSharedPointer<GraphNode> _node)
-{
-    log((boost::format("Unconnecting node #%d from node #%d") % _node->get_number() % node_number).str());
-    int node_num = _node->get_number();
 
-    if (!nodes.contains(node_num)) {
-        nodes.insert(node_num, _node.toWeakRef());
-    }
-}
 
-void GraphNode::connect_node(QWeakPointer<GraphNode> _node)
-{
-    connect_node(_node.toStrongRef());
-}
 
-void GraphNode::unconnect_node(unsigned int node_num)
-{
-    log((boost::format("Unconnecting node #%d from node #%d") % node_num % node_number).str());
 
-    if (nodes.contains(node_num))
-    {
-        nodes.remove(node_num);
-    }
-}
 
-void GraphNode::unconnect_all_nodes()
-{
-    log((boost::format("Unconnecting all nodes from node #%d") % node_number).str());
-    nodes.clear();
-}
 
-bool GraphNode::is_has_connected_nodes()
-{
-    return !nodes.empty();
-}
 
-bool GraphNode::is_vertex_connected(unsigned int node_num)
-{
-    return nodes.contains(node_num);
-}
 
-GraphNode &GraphNode::operator=(const GraphNode &other)
-{
-    node_name = other.node_name;
-    node_number = other.node_number;
-    nodes = other.nodes;
 
-    return *this;
-}
 
-GraphNode& GraphNode::operator=(const GraphNode&& other)
-{
-    node_name = std::move(other.node_name);
-    node_number = std::move(other.node_number);
-    nodes = std::move(other.nodes);
 
-    return *this;
-}
 
-unsigned int GraphNode::get_number() const
-{
-    return node_number;
-}
 
-void GraphNode::set_number(unsigned int newNode_number)
-{
-    node_number = newNode_number;
-}
 
-QList<QWeakPointer<GraphNode>> GraphNode::get_connected_nodes()
-{
-    return nodes.values();
-}
 
-QList<unsigned int> GraphNode::get_connected_nodes_nums()
-{
-    return nodes.keys();
-}
 
-QString GraphNode::get_name() const
-{
-    return node_name;
-}
 
-void GraphNode::set_name(const QString &newNode_name)
-{
-    node_name = newNode_name;
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
