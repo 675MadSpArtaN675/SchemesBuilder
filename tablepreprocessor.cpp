@@ -16,7 +16,7 @@ TablePreprocessor::TablePreprocessor(std::string _delimiter) : TablePreprocessor
 TablePreprocessor::TablePreprocessor(bool is_has_header, bool is_has_index) : TablePreprocessor(is_has_header, is_has_index, STANDART_DELIMITER)
 { }
 
-TablePreprocessor::TablePreprocessor(bool is_has_header, bool is_has_index, std::string delimiter)
+TablePreprocessor::TablePreprocessor(bool is_has_header, bool is_has_index, std::string delimiter) : CoreLogger()
 {
     _is_has_header = is_has_header;
     _is_has_index = is_has_index;
@@ -86,22 +86,20 @@ std::list<std::string> TablePreprocessor::read_line()
 {
     if (_opened_file.is_open() && !_opened_file.eof())
     {
-        std::string _line;
-        _line.resize(READ_BUFFER_SIZE);
+        std::array<char, READ_BUFFER_SIZE> _line;
 
+        std::string _line_str;
         do {
             _opened_file.getline(_line.data(), READ_BUFFER_SIZE);
-            boost::algorithm::trim(_line);
+            _line_str = std::string(_line.data());
+            boost::algorithm::trim(_line_str);
         }
-        while(!_opened_file.eof() && _line.empty());
+        while(!_opened_file.eof() && _line_str.empty());
 
-        if (!_opened_file.eof())
-        {
-            _opened_file.seekg(0, std::ios_base::beg);
-        }
+        std::cout << "Считана строка: " << _line_str << std::endl;
 
         if (!_line.empty()) {
-            return split_line_by_delimiter(_line, _delimiter);
+            return split_line_by_delimiter(_line_str, _delimiter);
         }
     }
 
@@ -117,20 +115,26 @@ std::list<std::string> TablePreprocessor::read_line_num(int number)
 
     if (_opened_file.is_open() && _lines_and_their_pos.contains(number))
     {
-        std::string _line;
-        _line.resize(READ_BUFFER_SIZE);
+        std::array<char, READ_BUFFER_SIZE> _line;
 
         int pos = _lines_and_their_pos[number];
 
         _opened_file.seekg(pos);
         _opened_file.getline(_line.data(), READ_BUFFER_SIZE);
+        std::string _line_str(_line.data());
+        boost::algorithm::trim(_line_str);
 
         if (!_line.empty()) {
-            return split_line_by_delimiter(_line, _delimiter);
+            return split_line_by_delimiter(_line_str, _delimiter);
         }
     }
 
     throw std::logic_error("Empty Line!");
+}
+
+void TablePreprocessor::rewind()
+{
+    _opened_file.seekg(0, std::ios_base::beg);
 }
 
 std::list<std::string> TablePreprocessor::split_line_by_delimiter(std::string line, std::string delimiter)
@@ -159,11 +163,12 @@ void TablePreprocessor::calculate_lines()
         int line_num = 2;
         while(_opened_file.eof())
         {
-            std::string _line;
-            _line.resize(READ_BUFFER_SIZE);
+            std::array<char, READ_BUFFER_SIZE> _line;
 
             _opened_file.getline(_line.data(), READ_BUFFER_SIZE);
-            boost::algorithm::trim(_line);
+            std::string _line_str(_line.data());
+
+            boost::algorithm::trim(_line_str);
 
             if (!_line.empty()) {
                 _lines_and_their_pos[line_num++] = _opened_file.tellg();
@@ -171,8 +176,19 @@ void TablePreprocessor::calculate_lines()
 
         }
 
+        rewind();
         _line_count = line_num;
     }
+}
+
+std::string TablePreprocessor::delimiter() const
+{
+    return _delimiter;
+}
+
+void TablePreprocessor::setDelimiter(const std::string &newDelimiter)
+{
+    _delimiter = newDelimiter;
 }
 
 int TablePreprocessor::line_count() { return _line_count; }

@@ -9,7 +9,9 @@
 #include <list>
 #include <fstream>
 
-class TablePreprocessor
+#include <CoreLogger.hpp>
+
+class TablePreprocessor : protected CoreLogger
 {
 public:
     TablePreprocessor();
@@ -32,10 +34,14 @@ public:
 
     std::list<std::string> read_line();
     std::list<std::string> read_line_num(int number);
+    void rewind();
 
     int line_count();
 
     void close();
+
+    std::string delimiter() const;
+    void setDelimiter(const std::string &newDelimiter);
 
 protected:
     std::list<std::string> split_line_by_delimiter(std::string line, std::string delimiter);

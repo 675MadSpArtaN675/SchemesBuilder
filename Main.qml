@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 
+import TableReader
 
 Window {
     width: 1024
@@ -13,6 +14,7 @@ Window {
 
         modality: Qt.WindowModal
     }
+
 
     Rectangle {
         id: rectangle
@@ -42,8 +44,6 @@ Window {
                 y: 0
                 width: 5000
                 height: 1000
-
-
             }
         }
     }

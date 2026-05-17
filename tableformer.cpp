@@ -2,7 +2,7 @@
 
 #include <boost/algorithm/string.hpp>
 
-TableFormer::TableFormer()
+TableFormer::TableFormer() : CoreLogger()
 {
     _is_has_index = false;
     _is_has_columns = false;
@@ -68,7 +68,7 @@ void TableFormer::add_row(int row_index, std::list<std::string> row_list)
     std::vector<std::string> col_names = get_columns_names();
     std::list<std::string>::iterator value_to_row = row_list.begin();
 
-    for (std::string name : col_names) {
+    for (std::string& name : col_names) {
         int value_ = 0;
 
         if (value_to_row != row_list.end())
@@ -77,7 +77,12 @@ void TableFormer::add_row(int row_index, std::list<std::string> row_list)
             value_to_row++;
         }
 
-        _creating_table.get_column<int>(name.c_str())[row_index] = value_;
+        if (_creating_table.get_column<int>(name.c_str()).size() > row_index) {
+            _creating_table.get_column<int>(name.c_str())[row_index] = value_;
+        }
+        else {
+            _creating_table.get_column<int>(name.c_str()).push_back(value_);
+        }
     };
 }
 
@@ -106,6 +111,33 @@ void TableFormer::add_autoindexed_row(std::list<std::string> row_list)
 
 }
 
+void TableFormer::remove_row(int row_num)
+{
+    std::vector<std::string> _cols = get_columns_names();
+    for (std::string& col : _cols)
+    {
+        _creating_table.get_column<int>(col.data()).pop_back();
+    }
+}
+
+void TableFormer::remove_column(int column_num)
+{
+    _creating_table.remove_column<int>(column_num);
+}
+
+void TableFormer::remove_row(std::string name)
+{
+    int index = get_index_num(name);
+
+    remove_row(index);
+}
+
+void TableFormer::remove_column(std::string name)
+{
+    _creating_table.remove_column<int>(name.c_str());
+}
+
+
 int TableFormer::get_last_row_num()
 {
     int last_index = _creating_table.get_index().size() - 1;
@@ -115,7 +147,8 @@ int TableFormer::get_last_row_num()
 
 int TableFormer::get_new_row_num()
 {
-    return _creating_table.get_index().size();
+    std::string idx = _creating_table.col_idx_to_name(0);
+    return _creating_table.get_column<int>(idx.data()).size();
 }
 
 int TableFormer::get_index_num(std::string index_str)
@@ -143,6 +176,11 @@ std::vector<std::string> TableFormer::get_columns_names()
     });
 
     return _output;
+}
+
+std::vector<std::string> TableFormer::get_row_indexes()
+{
+    return _creating_table.get_index();
 }
 
 

@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 file(GLOB HEADER_FILES "./*.hpp" "./*.h" )
 file(GLOB SOURCES_FILES "./*.cpp")
 
-find_package(Qt6 REQUIRED COMPONENTS Quick)
+find_package(Qt6 REQUIRED COMPONENTS Quick Core QuickWidgets)
 find_package(Boost REQUIRED)
 find_package(DataFrame REQUIRED)
 
@@ -24,6 +24,8 @@ qt_add_qml_module(appGraphPainter
     QML_FILES
         Main.qml
         TableLoadDialog.qml
+        GraphField.qml
+
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -38,7 +40,7 @@ set_target_properties(appGraphPainter PROPERTIES
 )
 
 target_link_libraries(appGraphPainter
-    PRIVATE Qt6::Quick DataFrame
+    PRIVATE Qt6::Quick Qt6::Core Qt6::QuickWidgets DataFrame
 )
 
 target_include_directories(appGraphPainter PRIVATE ${Boost_INCLUDE_DIR} ${DataFrame_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
