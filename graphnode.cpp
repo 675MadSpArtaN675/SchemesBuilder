@@ -12,14 +12,17 @@ GraphNode GraphNode::create(unsigned int node_num, QString name)
 GraphNode GraphNode::create(unsigned int node_num, QString name, QMap<unsigned int, QWeakPointer<GraphNode> > &_nodes)
 {
     GraphNode _node(node_num, name);
-    
+
     for (QWeakPointer<GraphNode>& num_value : _nodes.values())
     {
         _node.connect_node(num_value);
     }
-    
+
     return _node;
 }
+
+GraphNode::GraphNode() : GraphNode(0, QString())
+{ }
 
 GraphNode::GraphNode(unsigned int node_num, QString node_name_)  : node_name{node_name_}, nodes{}, CoreLogger()
 {
@@ -31,61 +34,71 @@ GraphNode::GraphNode(unsigned int node_num, QString node_name_)  : node_name{nod
     {
         node_number = node_num;
     }
-    
+
     log((boost::format("Create %d with name %s") % node_number % node_name_.toStdString()).str());
 }
 
 GraphNode::GraphNode(const GraphNode &other)
 {
     log((boost::format("Copying %d with name %s") % other.node_number % other.node_name.toStdString()).str());
-    
+
     node_name = other.node_name;
     node_number = other.node_number;
     nodes = other.nodes;
+    _add_data = other.additional_data();
 }
 
 GraphNode::GraphNode(const GraphNode &&other)
 {
     log((boost::format("Moving %d with name %s") % other.node_number % other.node_name.toStdString()).str());
-    
+
     node_name = std::move(other.node_name);
     node_number = std::move(other.node_number);
     nodes = std::move(other.nodes);
+    _add_data = std::move(other.additional_data());
 }
 
 GraphNode::~GraphNode()
 {
-    log("Destroying node #" + std::to_string(node_number));
-    
     nodes.clear();
 }
 
 void GraphNode::connect_node(QSharedPointer<GraphNode> _node)
 {
-    log((boost::format("Unconnecting node #%d from node #%d") % _node->get_number() % node_number).str());
+    log((boost::format("Connecting node #%d from node #%d") % _node->get_number() % node_number).str());
     int node_num = _node->get_number();
-    
-    if (!nodes.contains(node_num)) {
-        nodes.insert(node_num, _node.toWeakRef());
+
+    if (!nodes.contains(node_num) && _node) {
+        QWeakPointer<GraphNode> _node_r = _node.toWeakRef();
+        nodes.insert(node_num, _node_r);
+
+        log("Node connected!");
     }
 }
 
 void GraphNode::connect_node(QWeakPointer<GraphNode> _node)
 {
-    connect_node(_node.toStrongRef());
+    log((boost::format("Connecting node #%d from node #%d") % _node.toStrongRef()->get_number() % node_number).str());
+    int node_num = _node.toStrongRef()->get_number();
+
+    if (!nodes.contains(node_num) && _node) {
+        nodes.insert(node_num, _node);
+
+        log("Node connected!");
+    }
 }
 
 void GraphNode::unconnect_node(unsigned int node_num)
 {
     log((boost::format("Unconnecting node #%d from node #%d") % node_num % node_number).str());
-    
+
     if (nodes.contains(node_num))
     {
         nodes.remove(node_num);
     }
 }
 
-void GraphNode::unconnect_all_nodes()
+void GraphNode::unconnect_all_nodes() noexcept
 {
     log((boost::format("Unconnecting all nodes from node #%d") % node_number).str());
     nodes.clear();
@@ -127,13 +140,13 @@ GraphNode &GraphNode::operator=(const GraphNode &other)
     node_name = other.node_name;
     node_number = other.node_number;
     nodes = other.nodes;
-    
+
     return *this;
 }
 
 QVariant& GraphNode::additional_data() const
 {
-    return _add_data;
+	return _add_data;
 }
 
 void GraphNode::set_additional_data(const QVariant &add_data)
@@ -146,7 +159,7 @@ GraphNode& GraphNode::operator=(GraphNode&& other)
     node_name = std::move(other.node_name);
     node_number = std::move(other.node_number);
     nodes = std::move(other.nodes);
-    
+
     return *this;
 }
 

@@ -13,9 +13,9 @@
 
 #include "CoreLogger.hpp"
 
-class GraphBuilder : protected CoreLogger
+class GraphBuilder : public QObject, protected CoreLogger
 {
-    Q_GADGET
+    Q_OBJECT
     Q_PROPERTY(QString name READ name WRITE setName)
     Q_PROPERTY(graph_data* last_created_graph READ last_created)
 
@@ -23,15 +23,15 @@ public:
     using vector2d = std::vector<std::vector<int>>;
     using int_hmdf_matrix = hmdf::Matrix<int>;
 
-    GraphBuilder();
-    GraphBuilder(QString _name);
+    explicit GraphBuilder(QObject* parent = nullptr);
+    explicit GraphBuilder(QString _name, QObject* parent = nullptr);
     GraphBuilder(const GraphBuilder& other_builder);
     GraphBuilder(GraphBuilder&& other_builder);
     ~GraphBuilder();
 
-    Q_INVOKABLE GraphBuilder& create_nodes_from_matrix(int_hmdf_matrix& _matrix, QList<QString> names = QList<QString>());
-    Q_INVOKABLE GraphBuilder& create_nodes_from_matrix(vector2d& _matrix, QList<QString> names = QList<QString>());
-    Q_INVOKABLE GraphBuilder& create_nodes_from_matrix(QList<QList<int>>& _matrix, QList<QString> names = QList<QString>());
+    GraphBuilder& create_nodes_from_matrix(int_hmdf_matrix& _matrix, QList<QString> names = QList<QString>());
+    GraphBuilder& create_nodes_from_matrix(vector2d& _matrix, QList<QString> names = QList<QString>());
+    Q_INVOKABLE GraphBuilder& create_nodes_from_matrix(QList<QList<int>> _matrix, QList<QString> names);
     Q_INVOKABLE GraphBuilder& create_nodes_from_preprocessor(TableFormer* _matrix);
 
     Q_INVOKABLE GraphBuilder& get_nodes_from_other_graph(const graph_data& _other_graph);
@@ -42,8 +42,10 @@ public:
     Q_INVOKABLE GraphBuilder& unconnect_node_from_node(unsigned int first_node_num, unsigned int second_node_num);
     Q_INVOKABLE GraphBuilder& remove_node(unsigned int num);
 
+    Q_INVOKABLE bool is_empty();
     Q_INVOKABLE GraphBuilder& clear();
 
+    Q_INVOKABLE graph_data* build_ptr();
     Q_INVOKABLE graph_data build();
 
     GraphBuilder& operator=(const GraphBuilder& _other);

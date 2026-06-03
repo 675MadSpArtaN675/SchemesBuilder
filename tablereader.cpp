@@ -3,75 +3,99 @@
 #include "DataFrame/Utils/Matrix.h"
 
 #include <boost/algorithm/string.hpp>
+#include <boost/format.hpp>
 
 TableReader::TableReader(QObject *parent)
     : QObject{parent}, CoreLogger()
 { }
 
+TableReader::~TableReader()
+{ }
 
 void TableReader::parse_file(QString file_path)
 {
-    std::string _delim = _delimiter.toStdString();
-    if (!_table_preprocessor
-            || _table_preprocessor->delimiter() != _delim
-            || _table_preprocessor->is_header_has() != _is_header_need
-            || _table_preprocessor->is_index_has() != _is_index_need)
-    {
-        _table_preprocessor.reset(new TablePreprocessor(_is_header_need, _is_index_need, _delim));
+    processor_init();
+
+    try {
+		std::string filename = file_path.toStdString();
+		_table_preprocessor->open(filename);
+
+		if (_table_preprocessor->validate_file())
+		{
+			log("Парсим файл: " + filename);
+			parse_file_cycle(file_path);
+		}
+		else
+		{
+			_table_preprocessor->close();
+		}
     }
-
-    std::string filename = file_path.toStdString();
-
-    _table_preprocessor->open(filename);
-
-    if (_table_preprocessor->validate_file())
+    catch (const std::invalid_argument& error)
     {
-        std::cout << "Парсим файл: " << filename << std::endl;
-        _table_former->clear();
-
-        bool is_first_line = true;
-        while (!_table_preprocessor->is_eof())
-        {
-            std::list<std::string> _line = _table_preprocessor->read_line();
-            std::cout << "Длина считанной линии: " << _line.size() << std::endl;
-
-            if (_line.size() > 1)
-            {
-                if (is_first_line) {
-                    _table_former->set_columns_without_names(_line.size());
-                    is_first_line = false;
-                }
-
-                if (_is_index_need) {
-                    _table_former->add_autoindexed_row(_line);
-                }
-                else
-                {
-                    int last_new_row_index = _table_former->get_new_row_num();
-                    std::cout << "Индекс: " << last_new_row_index << std::endl;
-                    _table_former->add_row(last_new_row_index, _line);
-                }
-            }
-            else
-            {
-                std::string row_value = _line.front();
-                std::cout << "Значение: " << row_value << std::endl;
-                boost::algorithm::trim(row_value);
-
-                if (row_value == "end" || row_value == "e")
-                {
-                    _table_preprocessor->close();
-                    break;
-                }
-            }
-        }
-
-        _last_file = file_path;
+        log_error(std::string("Argument error: ") + error.what());
     }
-    else
+    catch (const std::exception& error)
     {
-        _table_preprocessor->close();
+		log_error(std::string("Error of file parsing: ") + error.what());
     }
+}
+
+void TableReader::parse_file_cycle(const QString& file_path)
+{
+    _table_former->clear();
+
+	bool is_first_line = true;
+	while (!_table_preprocessor->is_eof())
+	{
+		std::list<std::string> _line = _table_preprocessor->read_line();
+		log("Длина считанной линии: " + std::to_string(_line.size()));
+
+		if (_line.size() > 1)
+		{
+			if (is_first_line && false) {
+				log_debug("Setting header...");
+				if (_is_header_need)
+				{
+					_table_former->set_columns_names(_line);
+
+					is_first_line = false;
+					continue;
+				}
+				else
+				{
+					_table_former->set_columns_without_names(_line.size());
+				}
+
+				is_first_line = false;
+			}
+
+			if (_is_index_need) {
+				_table_former->add_autoindexed_row(_line);
+			}
+			else
+			{
+				int last_new_row_index = _table_former->get_new_row_num();
+                log("New row in index: " + std::to_string(last_new_row_index));
+
+				_table_former->add_row(last_new_row_index, _line);
+			}
+		}
+		else
+		{
+			std::string row_value = _line.front();
+			log("Значение: " + row_value);
+
+			boost::algorithm::trim(row_value);
+
+			if (row_value == "end" || row_value == "e")
+			{
+				_table_preprocessor->close();
+				break;
+			}
+		}
+	}
+
+	_last_file = file_path;
 }
 
 void TableReader::parse_file(QUrl file_path)
@@ -82,19 +106,44 @@ void TableReader::parse_file(QUrl file_path)
     parse_file(file_path_str);
 }
 
+void TableReader::clear()
+{
+	_table_former->clear();
+    _table_preprocessor.reset();
+}
+
+void TableReader::processor_init()
+{
+    std::string _delim = _delimiter.toStdString();
+    if (!_table_preprocessor
+            || _table_preprocessor->delimiter() != _delim
+            || _table_preprocessor->is_header_has() != _is_header_need
+            || _table_preprocessor->is_index_has() != _is_index_need)
+    {
+        _table_preprocessor.reset(new TablePreprocessor(_is_header_need, _is_index_need, _delim));
+    }
+
+	log((boost::format("Is header: %d, Is index: %d") % _is_header_need % _is_index_need).str());
+}
+
 QList<QList<int>> TableReader::get_table()
 {
+    log("Getting table...");
     if (_table_former) {
         hmdf::Matrix<int> _table = _table_former->to_matrix();
         QList<QList<int>> _result_table_to_qml;
 
+        log_debug((boost::format("Matrix size %dx%d;") % _table.rows() % _table.cols()).str());
         for (int i = 0; i < _table.rows(); i++)
         {
             _result_table_to_qml.emplaceBack();
 
             for (int j = 0; j < _table.cols(); j++)
             {
-                _result_table_to_qml[i].push_back(_table(i,j));
+                int value = _table(i, j);
+                log_debug((boost::format("Insert element (%d; %d) = %d;") % i % j % value).str());
+
+                _result_table_to_qml[i].push_back(value);
             }
         }
 
@@ -102,6 +151,7 @@ QList<QList<int>> TableReader::get_table()
         return _result_table_to_qml;
     }
 
+    log_error("Table is empty!");
     return QList<QList<int>>();
 }
 
@@ -156,12 +206,22 @@ bool TableReader::is_index_need() {
     return _is_index_need;
 }
 
-TableFormer* TableReader::table_former() const
+QObject* TableReader::table_former() const
 {
     return _table_former.get();
 }
 
-void TableReader::set_table_former(TableFormer* new_table_former)
+void TableReader::set_table_former(QObject* new_table_former)
 {
-    _table_former.reset(new_table_former);
+    try {
+		if (new_table_former != nullptr) {
+            AbstractTableFormer* former = dynamic_cast<AbstractTableFormer*>(new_table_former);
+
+			_table_former.reset(former->clone().release());
+        }
+	}
+    catch (const std::bad_cast& _error)
+	{
+		log(std::string("Error of cast object of new former: ") + _error.what());
+	}
 }

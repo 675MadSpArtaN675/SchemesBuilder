@@ -6,68 +6,41 @@
 #include <boost/smart_ptr.hpp>
 #include <boost/format.hpp>
 
+#include <boost/log/trivial.hpp>
+#include <boost/log/exceptions.hpp>
 #include <boost/log/core.hpp>
 #include <boost/log/sinks.hpp>
 
 #include "graph_data.hpp"
 #include "graphbuilder.hpp"
 #include "tableformer.hpp"
+#include "tableformerdatabasedtype.hpp"
 #include "tablereader.hpp"
 
 #include "graph_painter.hpp"
+#include "CoreLogger.hpp"
 
 namespace lg = boost::log;
 namespace sk = boost::log::sinks;
 
-struct null_deleter
-{
-    void operator()(const std::ostream* ptr)
-    { }
-};
-
-void logger_config(std::string filename)
-{
-    using file_backend = sk::text_file_backend;
-    using file_task = sk::asynchronous_sink<file_backend>;
-
-    using console_backend = sk::text_ostream_backend;
-    using console_task = sk::asynchronous_sink<console_backend>;
-
-    boost::format _name_formatter = boost::format("%s%s.log") % filename;
-
-    boost::shared_ptr<file_task> file_sink = boost::make_shared<file_task>(
-                boost::make_shared<file_backend>(
-                    lg::keywords::file_name = (_name_formatter % "").str(),
-                    lg::keywords::target_file_name = (_name_formatter % "_%3N").str(),
-                    lg::keywords::auto_flush = true
-                )
-            );
-
-    boost::shared_ptr<console_task> console_backend_task = boost::make_shared<console_task>(
-                boost::make_shared<console_backend>(
-                    boost::shared_ptr<std::ostream>(&std::cout, null_deleter()),
-                    lg::keywords::auto_flush = true
-                )
-            );
-
-    lg::core_ptr core_instance = lg::core::get();
-
-    core_instance->add_sink(file_sink);
-    core_instance->add_sink(console_backend_task);
-
-}
-
 int main(int argc, char *argv[])
 {
     logger_config("app_painter");
+    BOOST_LOG_TRIVIAL(info) << "Start application!";
+
     QGuiApplication app(argc, argv);
+    app.setOrganizationDomain("Corp");
+    app.setOrganizationName("SpartanCorp");
+    app.setApplicationName("GraphPainter");
 
     qmlRegisterType<TableReader>("TableReader", 1, 0, "TableReader");
-    qmlRegisterType<GraphNode>("TableReader", 1, 0, "GraphNode");
-    qmlRegisterType<graph_data>("TableReader", 1, 0, "GraphData");
+    qmlRegisterType<GraphNode>("GraphPaint", 1, 0, "graphNode");
+    qmlRegisterType<graph_data>("GraphPaint", 1, 0, "graphData");
     qmlRegisterType<TableFormer>("TableReader", 1, 0, "TableFormer");
-    qmlRegisterType<GraphBuilder>("TableReader", 1, 0, "GBuilder");
-    qmlRegisterType<GraphPainter>("Painters", 1, 0, "GraphPainter");
+    qmlRegisterType<GraphBuilder>("GraphPaint", 1, 0, "GraphBuilder");
+    qmlRegisterType<GraphOptions>("GraphPaint", 1, 0, "GraphOptions");
+    qmlRegisterType<GraphPainter>("GraphPaint", 1, 0, "GraphPainter");
+    qmlRegisterType<TableFormerDatabasedType>("GraphPaint", 1, 0, "TFormer_DT");
 
     QQmlApplicationEngine engine;
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
@@ -75,5 +48,8 @@ int main(int argc, char *argv[])
     Qt::QueuedConnection);
     engine.loadFromModule("GraphPainter", "Main");
 
-    return QCoreApplication::exec();
+    int code = app.exec();
+    clean_log();
+
+    return code;
 }

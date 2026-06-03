@@ -33,15 +33,18 @@ class TableReader : public QObject, protected CoreLogger
     Q_PROPERTY(QList<QList<int>> table READ get_table BINDABLE bindable_table)
     Q_PROPERTY(QList<QString> titles READ get_titles BINDABLE bindable_titles)
 
-    Q_PROPERTY(TableFormer* former_of_graph_table READ table_former WRITE set_table_former)
+    Q_PROPERTY(QObject* former_of_graph_table READ table_former WRITE set_table_former)
 
     Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(TableReader, QList<QList<int>>, _table_bind, QList<QList<int>>())
     Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(TableReader, QList<QString>, _titles, QList<QString>())
 public:
     explicit TableReader(QObject *parent = nullptr);
+    ~TableReader();
 
     Q_INVOKABLE void parse_file(QString file_path);
     Q_INVOKABLE void parse_file(QUrl file_path);
+    Q_INVOKABLE void clear();
+
     QList<QList<int>> get_table();
     QBindable<QList<QList<int>>> bindable_table();
 
@@ -57,19 +60,20 @@ public:
     void set_index_need(bool value);
     bool is_index_need();
 
-    TableFormer* table_former() const;
-    void set_table_former(TableFormer* newTable_former);
+    QObject* table_former() const;
+    void set_table_former(QObject* newTable_former);
 
 protected:
+    void processor_init();
+    void parse_file_cycle(const QString& file_path);
+
     QString _delimiter;
     QString _last_file;
 
     bool _is_header_need, _is_index_need;
 
     std::unique_ptr<TablePreprocessor> _table_preprocessor;
-    std::unique_ptr<TableFormer> _table_former;
-
-
+    std::unique_ptr<AbstractTableFormer> _table_former;
 };
 
 #endif // TABLEREADER_HPP

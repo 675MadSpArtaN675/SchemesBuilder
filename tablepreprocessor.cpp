@@ -36,7 +36,7 @@ void TablePreprocessor::open(std::string path)
     }
     catch (std::exception ex)
     {
-        std::cout << ex.what() << std::endl;
+        log_error(std::string("Error of open file: ") + ex.what());
     }
 }
 
@@ -96,7 +96,7 @@ std::list<std::string> TablePreprocessor::read_line()
         }
         while(!_opened_file.eof() && _line_str.empty());
 
-        std::cout << "Считана строка: " << _line_str << std::endl;
+        log(std::string("Считана строка: ") + _line_str);
 
         if (!_line.empty()) {
             return split_line_by_delimiter(_line_str, _delimiter);
@@ -141,10 +141,20 @@ std::list<std::string> TablePreprocessor::split_line_by_delimiter(std::string li
 {
     std::list<std::string> _splitted_rows;
 
-    boost::algorithm::split(_splitted_rows, line, boost::algorithm::is_any_of(_delimiter), boost::algorithm::token_compress_on);
-    std::for_each(_splitted_rows.begin(), _splitted_rows.end(), [](std::string& text){
-       boost::algorithm::trim(text);
-    });
+    boost::algorithm::split(
+                _splitted_rows,
+                line,
+                boost::algorithm::is_any_of(_delimiter),
+                boost::algorithm::token_compress_on
+            );
+
+    std::for_each(
+        _splitted_rows.begin(),
+        _splitted_rows.end(),
+        [](std::string& text){
+		   boost::algorithm::trim(text);
+		}
+    );
 
     std::erase_if(_splitted_rows, [](std::string& text) { return text.empty(); });
 

@@ -3,39 +3,35 @@ import QtCore
 
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 import QtQuick.Dialogs
 
 import TableReader
-import Painters
+import GraphPaint
 
 Window {
     width: 650
     height: 480
     title: "Загрузка таблицы..."
 
-    required property Control canvas_where_paint
+    property var graph_ready: null
 
-    property GraphData graph_ready: null
     property var titles: file_reader.titles
     property var graph_data: file_reader.table
+    property var titles_ready: []
 
-    GraphPainter {
-        id: gr_painter
-
-        where_paint: canvas_where_paint
-        graph_to_transform: graph_ready
-    }
-
-    TableReader {
+	TableReader {
         id: file_reader
 
-        former_of_graph_table: TableFormer {}
+        former_of_graph_table: TFormer_DT{}
 
         delimiter: '|'
         is_index_need: (is_index_read.checkState == Qt.Checked) ? true : false
-        is_header_need: (is_col_titles_read.checkState == Qt.Checked) ? true : false
+        is_header_need: (is_index_read.checkState == Qt.Checked) ? true : false
     }
+
+    GraphBuilder {
+		id: builder
+	}
 
     FileDialog {
         id: _file_getter
@@ -43,33 +39,81 @@ Window {
 
         fileMode: FileDialog.OpenFile
         nameFilters: ["Text File (*.txt *.dat)"]
-
         onAccepted: function() {
-            let folder_current = _file_getter.currentFile;
+            let folder_current = currentFile;
 
             file_reader.parse_file(folder_current);
             let graph_data_ = file_reader.table;
             let titles_ = file_reader.titles;
 
-            if (graph_data_.length > 0)
-            {
-                titles_ready.clear();
-                let table_grid = table_frame;
-
-                table_grid.add_headers(titles_, graph_data_.length);
-                for (let i = 0; i < graph_data_.length; i++)
-                {
-                    let index = i.toString();
-                    if (titles_.length > i) {
-                        index = titles_[i];
-                    }
-
-                    titles_ready.push(index);
-                    table_grid.add_row(index, graph_data_[i]);
-                }
-            }
+			create_graph(graph_data_, titles_);
         }
     }
+
+	function clear_cache() {
+		console.log("Clearing table...");
+		table_frame.clear_grid();
+		file_reader.clear();
+
+		console.log("Clearing cache!");
+        builder.clear();
+		titles_ready = [];
+        x_count.textFromValue(1);
+
+		console.log("Graph cleared!");
+	}
+
+    function get_graph()
+    {
+        return graph_ready;
+    }
+
+    function get_table()
+    {
+        return table_frame.get_table();
+    }
+
+    function create_graph(graph_data_, titles_)
+    {
+		let table_grid = table_frame;
+        let table_len = table_grid.get_size();
+        let titles_size = table_grid.get_size() - 1;
+
+        if (graph_data_.length > 0)
+		{
+			table_frame.clear_grid();
+			titles_ready = [];
+
+			for (let row of graph_data_)
+			{
+				console.log(row);
+			}
+
+			table_len = graph_data_.length;
+			titles_size = titles_.length;
+
+			console.log(`Размер стороны матрицы: ${table_len}`);
+			console.log(`Количество столбцов: ${titles_size}`);
+
+			x_count.textFromValue(table_len + 1);
+			table_grid.set_size(table_len + 1);
+			table_grid.add_headers(titles_, table_len);
+
+            for (let i = 0; i < table_len; i++)
+			{
+				let index = i.toString();
+				if (titles_size > i) {
+					index = titles_[i];
+				}
+
+				titles_ready.push(index);
+				table_grid.add_row(index, graph_data_[i]);
+			}
+		}
+    }
+
+    signal graphBuilded(var data)
+    onGraphBuilded: console.log("Builded!");
 
     RoundButton {
         id: table_file_load
@@ -113,7 +157,8 @@ Window {
                         height: side_size
 
                         CheckBox {
-                            checked: (check_state > 0) ? true : false
+                            id: vertex_link
+                            checked: (check_state > 0) ? Qt.Checked : Qt.Unchecked
 
                             anchors.centerIn: parent
                         }
@@ -127,6 +172,7 @@ Window {
                 property Component title_comp: Component {
                     Rectangle {
                         required property int side_size
+
                         property string title_of_column: ""
                         property double multiply_width: 1.0
                         property double multiply_height: 1.0
@@ -136,10 +182,14 @@ Window {
 
                         border.width: 1
                         border.color: "#73657d"
+
                         Label {
                             text: title_of_column
                             font.family: "DejaVu Sans"
+                            font.pointSize: 10
                             anchors.centerIn: parent
+
+                            color: "#000000"
                         }
                     }
                 }
@@ -155,9 +205,12 @@ Window {
                 function get_checkboxes_data()
                 {
                     let result = [];
-                    for (let child of children)
+                    for (let child of element_link_grid.children)
                     {
-                        result.push(Number(child.checked));
+                        if (child.children[0].checked !== undefined) {
+                            let num = Number(child.children[0].checked);
+                            result.push(num);
+                        }
                     }
 
                     return result;
@@ -165,10 +218,46 @@ Window {
             }
         }
 
+        function get_size()
+        {
+            return element_link_grid.columns;
+        }
+
+		function clear_grid()
+        {
+            for (let child of element_link_grid.children)
+			{
+				child.destroy();
+			}
+        }
+        function resize_column(col_number)
+        {
+            let width = 0, height = 0;
+            let matrix_size = get_size();
+            for (let i = 0; i < matrix_size; i++)
+            {
+                for(let j = 0; j < matrix_size; j++)
+                {
+                    let index = i * matrix_size + j;
+                    let child_item = element_link_grid.children[index];
+
+                    if (j == 0)
+                    {
+                        width = child_item.width;
+                        height = child_item.height;
+                    }
+                    else
+                    {
+                        child_item.width = width;
+                        child_item.height = height;
+                    }
+                }
+            }
+        }
+
         function add_headers(row_array, count)
         {
-            set_size(count);
-            element_link_grid.title_comp.createObject(element_link_grid, {title_of_column: "Вершины", side_size: 50, multiply_width: 1.5});
+            element_link_grid.title_comp.createObject(element_link_grid, {title_of_column: "Откуда/Куда", side_size: 50, multiply_width: 1.5});
 
             let row_array_len = row_array.length;
             for (let i = 0; i < count; i++)
@@ -194,8 +283,6 @@ Window {
 
         function set_size(rows_and_cols)
         {
-            rows_and_cols += 1;
-
             element_link_grid.rows = rows_and_cols;
             element_link_grid.columns = rows_and_cols;
         }
@@ -210,7 +297,7 @@ Window {
                 result.push([]);
                 for (let j = 0; j < titles_ready.length; j++)
                 {
-                    result[i][j] = table_values.shift();
+                    result[i][j] = Number(table_values.shift());
                 }
             }
 
@@ -220,28 +307,67 @@ Window {
 
     Label {
         id: file_load_title
+
         x: 428
         y: 18
+
         text: qsTr("Загрузить таблицу\nиз файла:")
+
+        color: "#000000"
     }
 
     RoundButton {
         id: help_by_load
+
         x: 520
         y: 62
+
         width: 30
         height: 30
+
         text: "?"
     }
 
     SpinBox {
         id: x_count
+
         x: 425
         y: 136
+
         width: 117
         height: 30
+
         to: 100
         from: 1
+
+        onValueModified: {
+            console.log("Clearing log");
+            clear_cache();
+
+            let line_vertex_count = value;
+			let headers = [];
+            let init_row = [];
+
+            console.log(`Creating table with size: ${line_vertex_count}`);
+            table_frame.set_size(line_vertex_count + 1);
+            for (let i = 0; i < line_vertex_count; i++)
+            {
+                console.log(`Add column ${i}...`);
+                headers.push(i.toString());
+                init_row.push(0);
+            }
+
+            console.log(`Headers: ${headers}`);
+			table_frame.add_headers(headers, line_vertex_count);
+            titles_ready = headers;
+            for (let index of headers)
+            {
+                console.log(`Init row: ${index} ${init_row}`);
+                table_frame.add_row(index, Array.from(init_row));
+            }
+            console.log("Table created");
+            console.log("Table: ", table_frame.get_table());
+        }
     }
 
     Label {
@@ -251,6 +377,8 @@ Window {
         width: 16
         height: 18
         text: "Размер стороны квадрата:"
+
+        color: "#000000"
     }
 
     Button {
@@ -262,21 +390,26 @@ Window {
         text: "Построить"
 
         onClicked: function() {
-            let builder = GBuilder.new("Graph_1");
             let table = table_frame.get_table();
-            let titles = parent.titles;
+            console.log("Getting table: ", table);
 
-            builder.create_nodes_from_matrix(table, titles);
+            if (table.length > 0) {
+				console.log("Applying table");
+				console.log("Titles:", titles_ready);
+				builder.create_nodes_from_matrix(table, titles_ready);
 
-            graph_ready = builder.build();
+				console.log("Building graph");
+				let graph_ready_ = builder.build_ptr();
+				console.log("Build result", graph_ready_, !builder.is_empty());
 
-            for (let item of canvas_where_paint.children)
-            {
-                delete(item);
-            }
-
-            gr_painter.transform_graph(table, canvas_where_paint);
-            parent.close()
+				if (graph_ready_ !== null && !builder.is_empty()) {
+					console.log("Graph cached");
+					graph_ready = graph_ready_;
+					graphBuilded(graph_ready_);
+				}
+			}
+            console.log("Closing window");
+            close();
         }
     }
 
@@ -284,14 +417,20 @@ Window {
         id: is_index_read
         x: 425
         y: 180
-        text: "Читать заголовки строк?"
+
+        text: "Считывать заголовки\nстрок и столбцов?"
     }
 
-    CheckBox {
-        id: is_col_titles_read
+	Button {
+        id: clear_table
         x: 425
-        y: 208
-        text: "Читать заголовки столбцов?"
-    }
+        y: 240
 
+        width: 105
+        height: 35
+
+        text: "Очистить"
+
+        onClicked: clear_cache()
+    }
 }
