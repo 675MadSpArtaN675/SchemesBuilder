@@ -1,12 +1,16 @@
 #ifndef ABSTRACTTABLEFORMER_HPP
 #define ABSTRACTTABLEFORMER_HPP
 
+#include <map>
+#include <optional>
+
 #include <QObject>
+#include <QMap>
+
 #include <DataFrame/DataFrame.h>
 
 #include "CoreLogger.hpp"
 
-#define RESTRICT_FIRST_COLUMNS
 
 class AbstractTableFormer : public QObject, protected CoreLogger
 {
@@ -32,6 +36,12 @@ public:
     virtual void remove_column(int column_num) = 0;
     virtual void remove_column(std::string name) = 0;
 
+    virtual std::optional<std::string> set_description_for_node(int node_num, std::string description);
+    virtual void remove_description(int node_num);
+
+    virtual std::optional<std::string> get_description_by_node_num(int node_num);
+    virtual std::map<int, std::string> get_descriptions();
+
     virtual void clear();
     virtual std::unique_ptr<AbstractTableFormer> clone() = 0;
     virtual hmdf::Matrix<int> to_matrix();
@@ -49,6 +59,9 @@ protected:
 
     using index_type = std::string;
     hmdf::StdDataFrame<index_type> _creating_table;
+
+    std::map<int, std::string> _descriptions;
+    std::map<int, std::list<int>> _links;
 };
 
 #endif // ABSTRACTTABLEFORMER_HPP

@@ -21,6 +21,8 @@ public:
     virtual ~TableFormerDatabasedType();
 
     virtual void add_row(int row_index, std::list<std::string> row_list) override;
+    void add_row(std::string row_index, std::list<std::string> row_list) override;
+
     virtual hmdf::Matrix<int> to_matrix() override;
     virtual std::unique_ptr<AbstractTableFormer> clone() override;
 
@@ -28,9 +30,6 @@ public:
 
 protected:
     void fill_table();
-
-    std::map<int, std::string> _descriptions;
-    std::map<int, std::list<int>> _links;
 };
 
 #endif // TABLEFORMERDATABASEDTYPE_HPP

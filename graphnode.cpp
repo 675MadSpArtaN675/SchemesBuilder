@@ -65,26 +65,32 @@ GraphNode::~GraphNode()
 
 void GraphNode::connect_node(QSharedPointer<GraphNode> _node)
 {
-    log((boost::format("Connecting node #%d from node #%d") % _node->get_number() % node_number).str());
-    int node_num = _node->get_number();
+    if (_node->get_number() != node_number)
+    {
+		log((boost::format("Connecting node #%d to node #%d") % _node->get_number() % node_number).str());
+		int node_num = _node->get_number();
 
-    if (!nodes.contains(node_num) && _node) {
-        QWeakPointer<GraphNode> _node_r = _node.toWeakRef();
-        nodes.insert(node_num, _node_r);
+		if (!nodes.contains(node_num) && _node) {
+			QWeakPointer<GraphNode> _node_r = _node.toWeakRef();
+			nodes.insert(node_num, _node_r);
 
-        log("Node connected!");
-    }
+			log("Node connected!");
+		}
+	}
 }
 
 void GraphNode::connect_node(QWeakPointer<GraphNode> _node)
 {
-    log((boost::format("Connecting node #%d from node #%d") % _node.toStrongRef()->get_number() % node_number).str());
-    int node_num = _node.toStrongRef()->get_number();
+    if (node_number != _node.toStrongRef()->get_number())
+    {
+		log((boost::format("Connecting node #%d to node #%d") % _node.toStrongRef()->get_number() % node_number).str());
+		int node_num = _node.toStrongRef()->get_number();
 
-    if (!nodes.contains(node_num) && _node) {
-        nodes.insert(node_num, _node);
+		if (!nodes.contains(node_num) && _node) {
+			nodes.insert(node_num, _node);
 
-        log("Node connected!");
+			log("Node connected!");
+		}
     }
 }
 

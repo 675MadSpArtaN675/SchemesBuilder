@@ -6,9 +6,17 @@
 #include <QObject>
 #include <QSet>
 
+#include <boost/regex.hpp>
+#include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string_regex.hpp>
+
 #include <DataFrame/DataFrame.h>
+#include <QJSValue>
 
 #include "graph_data.hpp"
+#include "graph_painter.hpp"
+
+#include "tablereader.hpp"
 #include "tableformer.hpp"
 
 #include "CoreLogger.hpp"
@@ -18,6 +26,7 @@ class GraphBuilder : public QObject, protected CoreLogger
     Q_OBJECT
     Q_PROPERTY(QString name READ name WRITE setName)
     Q_PROPERTY(graph_data* last_created_graph READ last_created)
+    Q_PROPERTY(TableReader* reader READ reader WRITE set_reader)
 
 public:
     using vector2d = std::vector<std::vector<int>>;
@@ -33,6 +42,7 @@ public:
     GraphBuilder& create_nodes_from_matrix(vector2d& _matrix, QList<QString> names = QList<QString>());
     Q_INVOKABLE GraphBuilder& create_nodes_from_matrix(QList<QList<int>> _matrix, QList<QString> names);
     Q_INVOKABLE GraphBuilder& create_nodes_from_preprocessor(TableFormer* _matrix);
+    Q_INVOKABLE GraphBuilder& connect_all_vertexes_by_string(QString line, QJSValue table, bool is_delete_old_links = true);
 
     Q_INVOKABLE GraphBuilder& get_nodes_from_other_graph(const graph_data& _other_graph);
 
@@ -54,11 +64,19 @@ public:
     QString name() const;
     void setName(const QString &newName);
 
+    void set_reader(TableReader* _reader);
+    TableReader* reader();
+
     graph_data* last_created();
 
 protected:
     unsigned int get_max_index();
+    void set_additional_data(GraphNode& _node);
+    void line_partition(std::string& _line, QJSValue& _array);
+
     QString _name;
+
+    TableReader* _reader;
 
     QMap<unsigned int, GraphNode> _temp_nodes;
     QMap<unsigned int, QSet<unsigned int>> _nodes_links;

@@ -15,12 +15,15 @@
 #include <boost/log/core.hpp>
 #include <boost/log/sinks.hpp>
 
-#include "tableformer.hpp"
+#include "abstracttableformer.hpp"
 #include "tablepreprocessor.hpp"
 
 #include "CoreLogger.hpp"
 
 namespace lg = boost::log;
+
+
+
 
 class TableReader : public QObject, protected CoreLogger
 {
@@ -38,11 +41,19 @@ class TableReader : public QObject, protected CoreLogger
     Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(TableReader, QList<QList<int>>, _table_bind, QList<QList<int>>())
     Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(TableReader, QList<QString>, _titles, QList<QString>())
 public:
+	enum class FormerEnum {
+		Standart,
+		DatabasedType
+	};
+	Q_ENUM(FormerEnum)
+
     explicit TableReader(QObject *parent = nullptr);
     ~TableReader();
 
     Q_INVOKABLE void parse_file(QString file_path);
     Q_INVOKABLE void parse_file(QUrl file_path);
+    Q_INVOKABLE void switch_former(FormerEnum number);
+	Q_INVOKABLE QString get_description_of_node(int node_num);
     Q_INVOKABLE void clear();
 
     QList<QList<int>> get_table();
@@ -70,7 +81,7 @@ protected:
     QString _delimiter;
     QString _last_file;
 
-    bool _is_header_need, _is_index_need;
+    bool _is_header_need, _is_index_need, _is_headers_blocked, _is_index_blocked;
 
     std::unique_ptr<TablePreprocessor> _table_preprocessor;
     std::unique_ptr<AbstractTableFormer> _table_former;

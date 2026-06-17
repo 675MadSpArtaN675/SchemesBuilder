@@ -1,5 +1,8 @@
 #include "tablereader.hpp"
 
+#include "tableformer.hpp"
+#include "tableformerdatabasedtype.hpp"
+
 #include "DataFrame/Utils/Matrix.h"
 
 #include <boost/algorithm/string.hpp>
@@ -52,14 +55,11 @@ void TableReader::parse_file_cycle(const QString& file_path)
 
 		if (_line.size() > 1)
 		{
-			if (is_first_line && false) {
+			if (is_first_line && !_is_headers_blocked) {
 				log_debug("Setting header...");
 				if (_is_header_need)
 				{
 					_table_former->set_columns_names(_line);
-
-					is_first_line = false;
-					continue;
 				}
 				else
 				{
@@ -69,7 +69,7 @@ void TableReader::parse_file_cycle(const QString& file_path)
 				is_first_line = false;
 			}
 
-			if (_is_index_need) {
+			if (_is_index_need && !_is_index_blocked) {
 				_table_former->add_autoindexed_row(_line);
 			}
 			else
@@ -77,7 +77,7 @@ void TableReader::parse_file_cycle(const QString& file_path)
 				int last_new_row_index = _table_former->get_new_row_num();
                 log("New row in index: " + std::to_string(last_new_row_index));
 
-				_table_former->add_row(last_new_row_index, _line);
+				_table_former->add_row(std::to_string(last_new_row_index), _line);
 			}
 		}
 		else
@@ -112,6 +112,46 @@ void TableReader::clear()
     _table_preprocessor.reset();
 }
 
+void TableReader::switch_former(FormerEnum number)
+{
+    log("Switching a former. Input num: " + std::to_string((int) number));
+	log("Is block: " + std::to_string(number >= FormerEnum::DatabasedType));
+
+    if (number >= FormerEnum::DatabasedType) {
+		_is_headers_blocked = true;
+        _is_index_blocked = true;
+    }
+    else {
+		_is_headers_blocked = false;
+        _is_index_blocked = false;
+    }
+
+	switch (number)
+    {
+	case FormerEnum::Standart:
+		_table_former.reset(new TableFormer(parent()));
+		break;
+    case FormerEnum::DatabasedType:
+        _table_former.reset(new TableFormerDatabasedType(parent()));
+		break;
+
+    default:
+        _table_former.reset();
+        break;
+    }
+}
+
+QString TableReader::get_description_of_node(int node_num)
+{
+    if (_table_former) {
+		std::optional<std::string> node_descr = _table_former->get_description_by_node_num(node_num);
+
+		return QString::fromStdString(node_descr.value_or(""));
+    }
+
+    return QString();
+}
+
 void TableReader::processor_init()
 {
     std::string _delim = _delimiter.toStdString();
@@ -123,32 +163,43 @@ void TableReader::processor_init()
         _table_preprocessor.reset(new TablePreprocessor(_is_header_need, _is_index_need, _delim));
     }
 
-	log((boost::format("Is header: %d, Is index: %d") % _is_header_need % _is_index_need).str());
+    if (_table_former)
+	{
+    	_table_former->clear();
+    }
+
+    log((boost::format("Is header: %d, Is index: %d") % _is_header_need % _is_index_need).str());
 }
 
 QList<QList<int>> TableReader::get_table()
 {
     log("Getting table...");
     if (_table_former) {
-        hmdf::Matrix<int> _table = _table_former->to_matrix();
-        QList<QList<int>> _result_table_to_qml;
+        try {
+			hmdf::Matrix<int> _table = _table_former->to_matrix();
+			QList<QList<int>> _result_table_to_qml;
 
-        log_debug((boost::format("Matrix size %dx%d;") % _table.rows() % _table.cols()).str());
-        for (int i = 0; i < _table.rows(); i++)
-        {
-            _result_table_to_qml.emplaceBack();
+			log_debug((boost::format("Matrix size %dx%d;") % _table.rows() % _table.cols()).str());
+			for (int i = 0; i < _table.rows(); i++)
+			{
+				_result_table_to_qml.emplaceBack();
 
-            for (int j = 0; j < _table.cols(); j++)
-            {
-                int value = _table(i, j);
-                log_debug((boost::format("Insert element (%d; %d) = %d;") % i % j % value).str());
+				for (int j = 0; j < _table.cols(); j++)
+				{
+					int value = _table(i, j);
+					log_debug((boost::format("Insert element (%d; %d) = %d;") % i % j % value).str());
 
-                _result_table_to_qml[i].push_back(value);
-            }
+					_result_table_to_qml[i].push_back(value);
+				}
+			}
+
+			_table_bind.setValue(QList<QList<int>>(_result_table_to_qml));
+			return _result_table_to_qml;
         }
-
-        _table_bind.setValue(QList<QList<int>>(_result_table_to_qml));
-        return _result_table_to_qml;
+        catch (const std::exception& error)
+        {
+            log_error(std::string("Error of creating table: ") + error.what());
+        }
     }
 
     log_error("Table is empty!");

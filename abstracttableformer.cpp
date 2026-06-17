@@ -12,6 +12,8 @@ AbstractTableFormer::AbstractTableFormer(const AbstractTableFormer& other) : _is
 AbstractTableFormer::~AbstractTableFormer()
 { }
 
+
+
 int AbstractTableFormer::get_index_num(std::string index_str)
 {
     std::vector<std::string> indexes = _creating_table.get_index();
@@ -61,6 +63,42 @@ std::vector<std::string> AbstractTableFormer::get_row_indexes()
     return _creating_table.get_index();
 }
 
+std::optional<std::string> AbstractTableFormer::set_description_for_node(int node_num, std::string description)
+{
+    std::string _old_description;
+    if (_descriptions.contains(node_num))
+    {
+		_old_description = _descriptions[node_num];
+    }
+
+	_descriptions[node_num] = description;
+
+    log("Added description for node #" + std::to_string(node_num) + " text: " + description);
+    return (_old_description.empty()) ? std::nullopt : std::optional<std::string>(_old_description);
+}
+
+void AbstractTableFormer::remove_description(int node_num)
+{
+	if (_descriptions.contains(node_num))
+    {
+        _descriptions.erase(node_num);
+    }
+}
+
+std::optional<std::string> AbstractTableFormer::get_description_by_node_num(int node_num)
+{
+    if (_descriptions.contains(node_num)) {
+		return _descriptions[node_num];
+    }
+
+    return std::nullopt;
+}
+
+std::map<int, std::string> AbstractTableFormer::get_descriptions()
+{
+	return _descriptions;
+}
+
 int AbstractTableFormer::get_last_row_num()
 {
     int last_index = _creating_table.get_index().size() - 1;
@@ -76,7 +114,7 @@ int AbstractTableFormer::get_new_row_num()
 		return _creating_table.get_column<int>(idx.data()).size();
     }
 
-    return 0;
+    return _creating_table.get_index().size();
 }
 
 

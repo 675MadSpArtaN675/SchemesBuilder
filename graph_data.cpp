@@ -185,7 +185,7 @@ void graph_data::transform_links(QList<QList<int>>& _links)
 
 void graph_data::connect_vertex_to_vertex(unsigned int first_vertex, unsigned int second_vertex)
 {
-    log((boost::format("Connecting node #%d, to #%d") % first_vertex % second_vertex).str());
+    log((boost::format("Connecting node #%d to #%d") % first_vertex % second_vertex).str());
     if (!_nodes.contains(first_vertex))
     {
         throw std::logic_error("Node #" + std::to_string(first_vertex) + " not exists");
@@ -203,7 +203,7 @@ void graph_data::connect_vertex_to_vertex(unsigned int first_vertex, unsigned in
 
 void graph_data::connect_vertexes_to_vertex(unsigned int first_vertex, QList<unsigned int> other_vertexes)
 {
-    log((boost::format("Connecting node #%d, to %d nodes") % first_vertex % other_vertexes.size()).str());
+    log((boost::format("Connecting node #%d to %d nodes") % first_vertex % other_vertexes.size()).str());
 
     if (!_nodes.contains(first_vertex))
     {

@@ -8,8 +8,9 @@ import TableReader
 import GraphPaint
 
 Window {
-    width: 1024
-    height: 600
+	minimumWidth: 1148
+    minimumHeight: 600
+
     title: qsTr("Graph Painter")
 
     visible: true
@@ -21,17 +22,22 @@ Window {
         property int box_height: 75
         property double distance_between_graph_levels: 100
         property int height_spacing: 15
+		property double start_point_dx: 1.0
+
+		property int canvas_w: 800
+		property int canvas_h: 800
     }
 
     GraphPainter {
         id: painter
-		start_point_dx: 1.5
+
+		start_point_dx: application_settings.start_point_dx
 
         options: GraphOptions {
-           	box_width: Number(node_width.text)
-            box_height: Number(node_height.text)
-            distance: parseFloat(node_w_spacing.text)
-            h_spacing: Number(node_h_spacing.text)
+           	box_width: Number(node_width.value)
+            box_height: Number(node_height.value)
+            distance: parseFloat(node_w_spacing.value)
+            h_spacing: Number(node_h_spacing.value)
         }
     }
 
@@ -91,6 +97,9 @@ Window {
 				x: 2
 				y: 2
 
+				boundsBehavior: Flickable.StopAtBounds
+				flickDeceleration: 5000
+
 				width: parent.width - 4
 				height: parent.height - 4
                 clip: true
@@ -103,8 +112,8 @@ Window {
 
 					property var line_points: []
 
-					width: graph_base.width - 2
-					height: graph_base.height - 2
+					width: canvas_width_.value
+					height: canvas_height_.value
 
                     onPaint: {
                         console.log("Painting canvas elements...");
@@ -116,15 +125,29 @@ Window {
                         ctx.fillRect(0, 0, width, height);
 
                         console.log("Render lines");
+
+						let dx = 6;
+						let existed_points = new Set();
                         for (let line of line_points) {
-                            for (let i = 0; i < (line.length - 1); i++ ) {
+							let line_len = line.length - 1;
+                            for (let i = 0; i < line_len; i++ ) {
                                 let _point_1 = line[i];
                                 let _point_2 = line[i + 1];
-                                console.log(`Point 1: ${_point_1}. Point 2: ${_point_2}`);
 
 								ctx.beginPath();
 								ctx.moveTo(_point_1.x, _point_1.y);
 								ctx.lineTo(_point_2.x, _point_2.y);
+
+								if (line_len - 2 < i) {
+									let end_y_1 = _point_2.y + 5, end_y_2 = _point_2.y - 5;
+									let end_x = _point_2.x - 10;
+
+									ctx.moveTo(end_x, end_y_1);
+									ctx.lineTo(_point_2.x, _point_2.y);
+
+									ctx.moveTo(end_x, end_y_2);
+									ctx.lineTo(_point_2.x, _point_2.y);
+								}
 
 								ctx.strokeStyle = Qt.rgba(0, 0, 0, 1);
 								ctx.lineWidth = 1;
@@ -197,7 +220,7 @@ Window {
 				}
 
 				Button {
-					width: parent.width * 0.8
+					width: parent.width * 1.2
 					height: 40
 
 					text: "Создать граф по таблице"
@@ -206,7 +229,7 @@ Window {
 				}
 
 				Button {
-					width: parent.width * 0.8
+					width: parent.width * 1.2
 					height: 40
 
 					text: "Очистить граф"
@@ -215,7 +238,7 @@ Window {
 				}
 
 				Button {
-					width: parent.width * 0.8
+					width: parent.width * 1.2
 					height: 40
 
 					text: "Сохранить граф как изображение"
@@ -226,62 +249,124 @@ Window {
 
 			Column {
                 leftPadding: 10
-                spacing: 5
+                spacing: 25
 
-				Column {
-					Label {
-						text: qsTr("Ширина ноды:")
+				Row {
+					spacing: 25
+
+					Column {
+						Label {
+							text: qsTr("Ширина ноды:")
+						}
+
+						SpinBox {
+							id: node_width
+							editable: true
+
+							stepSize: 1
+							value: application_settings.box_width
+							from: 1
+							to: 1000
+						}
 					}
+					Column {
+						Label {
+							text: qsTr("Высота ноды:")
+						}
 
-					TextField {
-						id: node_width
+						SpinBox {
+							id: node_height
+							editable: true
 
-						placeholderText: "Ширина..."
-						text: application_settings.box_width.toString()
+							stepSize: 1
+							value: application_settings.box_height
 
-						validator: IntValidator {bottom: 0; top: 1000}
-					}
-				}
-				Column {
-					Label {
-						text: qsTr("Высота ноды:")
-					}
-
-					TextField {
-						id: node_height
-
-						placeholderText: "Высота..."
-						text: application_settings.box_height.toString()
-
-						validator: IntValidator {bottom: 0; top: 1000}
-					}
-				}
-				Column {
-					Label {
-						text: qsTr("Отступ между\nнодами по ширине:")
-					}
-
-					TextField {
-						id: node_w_spacing
-
-						placeholderText: "Отступ..."
-						text: application_settings.distance_between_graph_levels.toString()
-
-						validator: DoubleValidator {bottom: 0; top: 200}
+							from: 1
+							to: 1000
+						}
 					}
 				}
+
 				Column {
-					Label {
-						text: qsTr("Отступ между\nнодами по высоте:")
+					Column {
+						Label {
+							text: qsTr("Отступ между\nнодами по ширине:")
+						}
+
+						SpinBox {
+							id: node_w_spacing
+
+							width: 150
+
+							editable: true
+
+							stepSize: 1
+							value: application_settings.distance_between_graph_levels
+
+							from: 1
+							to: 500
+						}
+					}
+					Column {
+						Label {
+							text: qsTr("Отступ между\nнодами по высоте:")
+						}
+
+						SpinBox {
+							id: node_h_spacing
+
+							width: 150
+
+							editable: true
+
+							stepSize: 1
+							value: application_settings.height_spacing
+
+							from: 1
+							to: 500
+						}
+					}
+				}
+
+				Row {
+					spacing: 25
+
+					Column {
+						Label {
+							width: 150
+							text: qsTr("Ширина полотна:")
+						}
+
+						SpinBox {
+							id: canvas_width_
+							width: 150
+
+							editable: true
+
+							stepSize: 1
+
+							from: application_settings.canvas_w
+							to: Math.pow(10, 8)
+						}
 					}
 
-					TextField {
-						id: node_h_spacing
+					Column {
+						Label {
+							width: 125
+							text: qsTr("Длина полотна:")
+						}
 
-						placeholderText: "Отступ..."
-						text: application_settings.height_spacing.toString()
+						SpinBox {
+							id: canvas_height_
+							width: 150
 
-						validator: DoubleValidator {bottom: 0; top: 200}
+							editable: true
+
+							stepSize: 1
+
+							from: application_settings.canvas_h
+							to: Math.pow(10, 8)
+						}
 					}
 				}
 			}

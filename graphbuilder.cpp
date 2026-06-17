@@ -1,6 +1,10 @@
 #include "graphbuilder.hpp"
 
+#include <algorithm>
+#include <locale>
+
 #include <boost/format.hpp>
+#include <boost/lambda2.hpp>
 
 
 GraphBuilder::GraphBuilder(QObject* parent) : GraphBuilder(STANDART_GRAPH_NAME, parent)
@@ -24,7 +28,9 @@ GraphBuilder::GraphBuilder(GraphBuilder &&other_builder)
 }
 
 GraphBuilder::~GraphBuilder()
-{ }
+{
+    _cache.reset();
+}
 
 GraphBuilder &GraphBuilder::create_nodes_from_matrix(int_hmdf_matrix &_matrix, QList<QString> names)
 {
@@ -49,9 +55,12 @@ GraphBuilder &GraphBuilder::create_nodes_from_matrix(int_hmdf_matrix &_matrix, Q
         GraphNode _node(max_index + 1 + i, name);
 
         for (int j = 0; j < size_columns; j++) {
-            connect_node_to_node(i, j);
+            if (_matrix(i, j) != 0) {
+				connect_node_to_node(i, j);
+            }
         }
 
+		set_additional_data(_node);
         _temp_nodes.insert(i, std::move(_node));
     }
 
@@ -84,13 +93,19 @@ GraphBuilder &GraphBuilder::create_nodes_from_matrix(vector2d &_matrix, QList<QS
 
         log((boost::format("Creating node %d with name: %s") % (max_index + i) % name.toStdString()).str());
 
+		set_additional_data(_node);
+
+        QString descr = _node.additional_data().value<NodePaintOptions>().description();
+        log("Description setted: " + descr.toStdString());
+
         _temp_nodes.insert(max_index + i, std::move(_node));
+
     }
 
     for (int i = 0; i < size_rows; i++) {
         for (int j = 0; j < size_columns; j++)
         {
-            if (i != j) {
+            if (i != j && _matrix[i][j] != 0) {
                 connect_node_to_node(max_index + i, max_index + j);
             }
         }
@@ -99,7 +114,7 @@ GraphBuilder &GraphBuilder::create_nodes_from_matrix(vector2d &_matrix, QList<QS
     return *this;
 }
 
-GraphBuilder &GraphBuilder::create_nodes_from_matrix(QList<QList<int> > _matrix, QList<QString> names)
+GraphBuilder &GraphBuilder::create_nodes_from_matrix(QList<QList<int>> _matrix, QList<QString> names)
 {
     log((boost::format("QList matrix input size %d x %d. Names count %d") % _matrix.size() % _matrix[0].size() % names.size()).str());
 
@@ -107,6 +122,12 @@ GraphBuilder &GraphBuilder::create_nodes_from_matrix(QList<QList<int> > _matrix,
     std::transform(_matrix.begin(), _matrix.end(), std::back_inserter(_transformed_lists), [this](QList<int>& _row){
         log("Transforming row with len: " + std::to_string(_row.size()));
         std::vector<int> transformed_list(_row.begin(), _row.end());
+
+        std::stringstream _log_line;
+        std::for_each(transformed_list.begin(), transformed_list.end(), _log_line << boost::lambda2::_1 << ' ');
+        _log_line << std::endl;
+
+        log_debug("Line: " + _log_line.str());
         return transformed_list;
     });
 
@@ -154,6 +175,9 @@ GraphBuilder &GraphBuilder::get_nodes_from_other_graph(const graph_data &_other_
 GraphBuilder &GraphBuilder::add_node(GraphNode _node)
 {
     int node_num = _node.get_number();
+    log("Add node #" + std::to_string(node_num));
+
+	set_additional_data(_node);
 
     if (_temp_nodes.contains(node_num))
     {
@@ -168,22 +192,38 @@ GraphBuilder &GraphBuilder::add_node(GraphNode _node)
     return *this;
 }
 
+void GraphBuilder::set_additional_data(GraphNode& _node)
+{
+    int node_num = _node.get_number();
+
+    if (_reader) {
+		QString description = _reader->get_description_of_node(node_num);
+		if (!description.isEmpty()) {
+			log_debug("Description found...");
+			QVariant _options = _node.additional_data();
+			NodePaintOptions _options_obj;
+
+			if (!_options.isNull()) {
+				_options_obj = _options.value<NodePaintOptions>();
+			}
+
+			log_debug("Description text: " + description.toStdString());
+			_options_obj.setDescription(description);
+			_options.setValue(_options_obj);
+
+			_node.set_additional_data(QVariant::fromValue(_options));
+		}
+    }
+}
+
 GraphBuilder &GraphBuilder::add_node(int node_num, QString name)
 {
-    if (node_num == 0)
+    if (node_num <= 0)
     {
-        node_num += 1;
+        node_num = 1;
     }
 
-    if (_temp_nodes.contains(node_num))
-    {
-        int new_index = get_min_free_index(_temp_nodes.keys());
-        _temp_nodes.insert(new_index, GraphNode(node_num, name));
-
-        return *this;
-    }
-
-    _temp_nodes.insert(node_num, GraphNode(node_num, name));
+    add_node(GraphNode(node_num, name));
 
     return *this;
 }
@@ -192,14 +232,103 @@ GraphBuilder &GraphBuilder::connect_node_to_node(unsigned int first_node_num, un
 {
     if (_nodes_links.contains(first_node_num))
     {
+        log((boost::format("Node #%d linked to #%d node in builder.") % second_node_num % first_node_num).str());
         _nodes_links[first_node_num].insert(second_node_num);
     }
     else
     {
+        log((boost::format("Node #%d linked to #%d node. It is first node in list") % second_node_num % first_node_num).str());
         _nodes_links[first_node_num] = QSet<unsigned int>{second_node_num};
     }
 
     return *this;
+}
+
+GraphBuilder& GraphBuilder::connect_all_vertexes_by_string(QString line, QJSValue table, bool is_delete_old_links)
+{
+	std::string pre_performed_line = boost::algorithm::trim_copy(line.replace("\n", " ").toStdString());
+    log((boost::format("Input line: \'%s\'") % pre_performed_line).str());
+
+    if (pre_performed_line.empty())
+    {
+        log_debug("Line is empty!");
+    	return *this;
+    }
+
+    if (is_delete_old_links)
+    {
+        log_debug("Clearing old links...");
+        _nodes_links.clear();
+    }
+
+	boost::regex _pattern("(\\d+(?:\\s*-?>\\s*\\d+\\s*)*)", boost::regex::perl);
+    for (auto i = boost::make_regex_iterator(pre_performed_line, _pattern, boost::regex_constants::match_extra); i != boost::sregex_iterator(); i++)
+    {
+        if (!i->empty())
+        {
+			boost::smatch _match = *i;
+			std::string line = _match[0];
+            boost::algorithm::trim(line);
+
+            log_debug("Match line: " + line);
+
+            if (!line.empty()) {
+                log_debug("Removing spaces...");
+                try {
+					std::string::iterator removed_spaces = std::remove_if(line.begin(),
+line.end(), [](unsigned char x){ return std::isspace(x); });
+
+					line.erase(removed_spaces, line.end());
+
+                    line_partition(line, table);
+                }
+                catch (const std::exception& error)
+                {
+                    log_error(std::string("Error of deleting spaces: ") + error.what());
+                }
+            }
+        }
+    }
+
+    return *this;
+}
+
+void GraphBuilder::line_partition(std::string& _line, QJSValue& table)
+{
+	log_debug("No space line ready: " + _line);
+
+    boost::regex _split_pattern("(-?>)|,");
+	std::list<std::string> _parts;
+	boost::iter_split(_parts, _line, boost::regex_finder(_split_pattern));
+
+	unsigned int node_prev = 0;
+	for (std::string& item : _parts)
+	{
+		boost::algorithm::trim(item);
+
+		if (!item.empty())
+		{
+			unsigned int node = std::stoi(item);
+			log_debug("Parsed node num: " + item);
+
+			if (node_prev > 0 && node > 0)
+			{
+				log_debug((boost::format("Connect node #%d with #%d from string") % node_prev % node).str());
+				connect_node_to_node(node_prev, node);
+
+				if (table.isArray()) {
+					QJSValue row = table.property(node_prev - 1);
+
+					if (row.isArray())
+					{
+						row.setProperty(node - 1, 1);
+					}
+				}
+			}
+
+			node_prev = node;
+		}
+	}
 }
 
 GraphBuilder &GraphBuilder::unconnect_node_from_node(unsigned int first_node_num, unsigned int second_node_num)
@@ -279,7 +408,24 @@ graph_data* GraphBuilder::build_ptr()
 
         log("Connecting nodes...");
         for (unsigned int& node_num : _indexes) {
-            _data->connect_vertexes_to_vertex(node_num, _nodes_links[node_num].values());
+            QList<unsigned int> _connected_vertexes = _nodes_links[node_num].values();
+
+            std::stringstream _log_vertexes;
+            _log_vertexes << std::string("Vertexes connected to ") + std::to_string(node_num) + ": ";
+
+            if (!_connected_vertexes.empty()) {
+				for (unsigned int& vertex : _connected_vertexes)
+				{
+					_log_vertexes << vertex << ", ";
+				}
+
+				_data->connect_vertexes_to_vertex(node_num, _connected_vertexes);
+            }
+            else {
+                _log_vertexes << "None";
+            }
+
+            log_debug(_log_vertexes.str());
         }
 
         return _data;
@@ -319,6 +465,16 @@ QString GraphBuilder::name() const
 void GraphBuilder::setName(const QString &newName)
 {
     _name = newName;
+}
+
+void GraphBuilder::set_reader(TableReader *new_reader)
+{
+    _reader = new_reader;
+}
+
+TableReader *GraphBuilder::reader()
+{
+	return _reader;
 }
 
 graph_data *GraphBuilder::last_created()

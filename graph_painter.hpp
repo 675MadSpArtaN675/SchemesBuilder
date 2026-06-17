@@ -10,7 +10,7 @@
 #include <QQueue>
 
 #include <DataFrame/DataFrame.h>
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 
 #include "graph_data.hpp"
 #include "CoreLogger.hpp"
@@ -84,11 +84,13 @@ public:
     {
         x = other.x;
         y = other.y;
+        _description = other._description;
     }
     NodePaintOptions(NodePaintOptions&& other)
     {
         x = std::move(other.x);
         y = std::move(other.y);
+        _description = std::move(other._description);
     }
 
     NodePaintOptions& operator=(const NodePaintOptions& _node) = default;
@@ -156,13 +158,14 @@ protected:
 
     void calculate_one_point(QSharedPointer<GraphNode>& _node, int level, QQueue<NodePaintOptions>& positions, double& dx, NodePaintOptions* start_position);
     void paint_one_node(QSharedPointer<GraphNode>& _node, int level, QQuickItem* parent_widget, QMap<unsigned int, QQuickItem*>* _nodes);
-    void create_lines_for_node(QSharedPointer<GraphNode>& _node, int level, QList<QList<QPointF>>* points, QMap<unsigned int, QQuickItem*>* nodes, QQuickItem* canvas);
+    void create_lines_for_node(QSharedPointer<GraphNode>& _node, int level, QList<QList<QPointF>>* points, QMap<unsigned int, QQuickItem*>* nodes, QSet<QPoint>* _points_exists,  QQuickItem* canvas);
 
 	QList<GraphNode> get_nodes(QList<QWeakPointer<GraphNode>> _child_nodes);
 
 	void set_pos(QQuickItem* _to_transform, QQuickItem* parent, NodePaintOptions& options);
 	void set_size(QQuickItem* _to_transform);
     QList<QPointF> config_line(QQuickItem* _first_widget, QQuickItem* _second_widget, QQuickItem* canvas);
+
 
     std::unique_ptr<graph_data> _graph_to_transform;
     std::unique_ptr<GraphOptions> _options;

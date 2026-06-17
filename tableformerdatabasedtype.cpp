@@ -29,8 +29,9 @@ void TableFormerDatabasedType::add_row(int index, std::list<std::string> _row_va
 		_elements++;
 
         std::string _descr = *_elements;
+        log("Description text of new node: " + _descr);
 
-		_descriptions[index] = _descr;
+		set_description_for_node(index + 1, _descr);
     }
 
     if (size > 2) {
@@ -65,11 +66,17 @@ void TableFormerDatabasedType::add_row(int index, std::list<std::string> _row_va
     log((boost::format("Node %d was created") % index).str());
 }
 
+void TableFormerDatabasedType::add_row(std::string row_index, std::list<std::string> row_list)
+{
+ 	add_row(std::stoi(row_index), row_list);
+}
+
 hmdf::Matrix<int> TableFormerDatabasedType::to_matrix()
 {
     log("Converting table to matrix");
-    hmdf::Matrix<int> _matrix = _creating_table.get_matrix<int>();
+    fill_table();
 
+    hmdf::Matrix<int> _matrix = _creating_table.get_matrix<int>();
     for (int i = 0; i < _matrix.rows(); i++)
 	{
         std::stringstream value_rows("Row:\n");
@@ -93,6 +100,8 @@ hmdf::Matrix<int> TableFormerDatabasedType::to_matrix()
     log("Matrix ready!");
     return _matrix;
 }
+
+
 
 std::unique_ptr<AbstractTableFormer> TableFormerDatabasedType::clone()
 {

@@ -74,8 +74,13 @@ void TableFormer::add_row(int row_index, std::list<std::string> row_list)
 
         if (value_to_row != row_list.end())
         {
-            value_ = std::stoi(*value_to_row);
-            value_to_row++;
+            try {
+				value_ = std::stoi(*value_to_row);
+				value_to_row++;
+            }
+            catch (const std::exception& _error) {
+				log_error(std::string("Error: ") + _error.what());
+        	}
         }
 
         log((boost::format("Setting value %d") % value_).str());
@@ -91,6 +96,7 @@ void TableFormer::add_row(int row_index, std::list<std::string> row_list)
 void TableFormer::add_row(std::string row_index, std::list<std::string> row_list)
 {
     int row_index_ = get_index_num(row_index);
+    log("Found index num: " + std::to_string(row_index_));
 
     if (row_index_ < 0)
     {

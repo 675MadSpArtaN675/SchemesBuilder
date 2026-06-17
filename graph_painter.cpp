@@ -6,7 +6,9 @@
 #include <QColumnView>
 
 #include <boost/format.hpp>
-#include <variant>
+#include <boost/phoenix.hpp>
+#include <boost/lambda2.hpp>
+
 #include <cmath>
 
 #include <cmath>
@@ -38,6 +40,7 @@ GraphPainter::~GraphPainter()
 {
 	clear_cache();
     _options.reset();
+    _graph_to_transform.reset();
 }
 
 void GraphPainter::transform_graph(QList<QList<int>> table)
@@ -96,10 +99,9 @@ void GraphPainter::calculate_positions(double start_x, double start_y)
 
     NodePaintOptions opts(start_x, start_y);
     QQueue<NodePaintOptions> positions;
-    positions.enqueue(opts);
 
     log((boost::format("Start position for points: (%lf;%lf)") % opts.getX() % opts.getY()).str());
-    double graph_dx = 2;
+    double graph_dx = 1;
     _graph_to_transform->bfs_no_result(boost::bind(&GraphPainter::calculate_one_point, this, boost::placeholders::_1, boost::placeholders::_2, std::ref(positions), std::ref(graph_dx), &opts));
 
 }
@@ -118,16 +120,24 @@ void GraphPainter::calculate_one_point(QSharedPointer<GraphNode>& _node, int lev
         {
             log_debug("Queue is empty. Create new start pos...");
             pos = NodePaintOptions(*start_position);
-            double _y = pos.getY() + distance * dx;
+            double _y = pos.getY() + distance + std::abs(dx);
 
             pos.setY(_y);
             start_position->setY(_y);
             log((boost::format("Generated pos = (%lf;%lf)") % pos.getX() % pos.getY()).str());
-
-            dx += 1;
         }
 
         log((boost::format("Node \'%s\' has pos (%lf:%lf)") % _node->get_name().toStdString() % pos.getX() % pos.getY()).str());
+
+        if (!_node->additional_data().isNull()) {
+			NodePaintOptions _opts = _node->additional_data().value<NodePaintOptions>();
+
+            _opts.setX(pos.getX());
+            _opts.setY(pos.getY());
+
+            pos = _opts;
+        }
+
 		_node->set_additional_data(QVariant::fromValue(pos));
 
 		log((boost::format("Calculating new positions for child nodes of %d node!") % _node->get_number()).str());
@@ -211,11 +221,12 @@ QList<QList<QPointF>> GraphPainter::paint_lines(QQuickItem* canvas)
         return QList<QList<QPointF>>();
     }
 
+    QSet<QPoint> _ready_lines;
     QList<QList<QPointF>> points;
     _graph_to_transform->bfs_no_result(
                 boost::bind(&GraphPainter::create_lines_for_node, this,
                             boost::placeholders::_1, boost::placeholders::_2,
-                            &points, &_nodes, canvas)
+                            &points, &_nodes, &_ready_lines, canvas)
                         );
 
     log("Lines painting end! Lines count: " + std::to_string(points.size()));
@@ -228,7 +239,7 @@ QList<QList<QPointF>> GraphPainter::paint_lines(QQuickItem* canvas)
 	return points;
 }
 
-void GraphPainter::create_lines_for_node(QSharedPointer<GraphNode>& _node, int level, QList<QList<QPointF>>* points, QMap<unsigned int, QQuickItem*>* nodes, QQuickItem* canvas)
+void GraphPainter::create_lines_for_node(QSharedPointer<GraphNode>& _node, int level, QList<QList<QPointF>>* points, QMap<unsigned int, QQuickItem*>* nodes, QSet<QPoint>* _points_exists, QQuickItem* canvas)
 {
     log("Paint lines between parent and childs...");
 
@@ -249,6 +260,16 @@ void GraphPainter::create_lines_for_node(QSharedPointer<GraphNode>& _node, int l
 
 				QList<QPointF> _line = config_line(_widget, nodes->value(index, nullptr), canvas);
 
+                if (!_line.empty()) {
+					QPoint point = _line[0].toPoint();
+					if (_points_exists->contains(point))
+					{
+						std::for_each(_line.begin(), _line.end(), [](QPointF& _point) { _point.setY(_point.y() + 5); });
+					}
+
+					_points_exists->insert(point);
+                }
+
 				log("Lines count: " + std::to_string(_line.size()) + " of node #" + std::to_string(_node->get_number()));
 				points->append(_line);
 			}
@@ -258,6 +279,17 @@ void GraphPainter::create_lines_for_node(QSharedPointer<GraphNode>& _node, int l
 
 void GraphPainter::paint_one_node(QSharedPointer<GraphNode>& _node, int level, QQuickItem* parent_widget, QMap<unsigned int, QQuickItem*>* _nodes)
 {
+    auto _get_description = [](GraphNode& child_node) {
+		QVariant _var_obj = child_node.additional_data();
+
+		if (_var_obj.isNull())
+		{
+			return QString();
+		}
+
+		return _var_obj.value<NodePaintOptions>().description();
+	};
+
 	try {
 		log("Start paint widget for node #" + std::to_string(_node->get_number()));
 		log_debug("Extraction additional data");
@@ -271,7 +303,8 @@ void GraphPainter::paint_one_node(QSharedPointer<GraphNode>& _node, int level, Q
 		if (!_nodes->contains(index))
 		{
             log("Creating widget...");
-			_widget = create_box(*_node, _node->get_name(), parent_widget);
+            QString description = (!_pos.description().isEmpty()) ? _pos.description() : QString();
+			_widget = create_box(*_node, description, parent_widget);
 
 			if (_widget != nullptr) {
 				set_pos(_widget, parent_widget, _pos);
@@ -280,10 +313,14 @@ void GraphPainter::paint_one_node(QSharedPointer<GraphNode>& _node, int level, Q
 				_nodes->insert(index, _widget);
 
                 log("Painting child widgets...");
+                QList<QString> _descriptions_of_childs;
 				QList<GraphNode> _nodes_to_create = get_nodes(_node->get_connected_nodes());
+                std::transform(_nodes_to_create.begin(), _nodes_to_create.end(),
+                               std::back_inserter(_descriptions_of_childs),
+                               _get_description);
 
                 if (_nodes_to_create.size() > 0) {
-					create_box(_nodes_to_create, QList<QString>(), parent_widget, _nodes);
+					create_box(_nodes_to_create, _descriptions_of_childs, parent_widget, _nodes);
                 }
 			}
 		}
@@ -449,6 +486,7 @@ QQuickItem* GraphPainter::create_box(GraphNode _node, QString descr, QQuickItem*
     {
         width = border_pad_w + round(descr.size() * 1.5);
         height = border_pad_h + round(descr.count("\n") * 1.5);
+        node_name = descr;
     }
     else {
         width = border_pad_w + round(node_name.size() * 1.5),
