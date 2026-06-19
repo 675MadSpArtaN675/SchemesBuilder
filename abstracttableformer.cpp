@@ -121,6 +121,7 @@ int AbstractTableFormer::get_new_row_num()
 void AbstractTableFormer::clear()
 {
     _creating_table.clear();
+    _descriptions.clear();
 
     _is_has_index = false;
     _is_has_columns = false;

@@ -97,6 +97,12 @@ void GraphPainter::calculate_positions(double start_x, double start_y)
 
     _graph_to_transform->reindex_vertexes_numbers();
 
+    _connects_count = std::make_unique<QMap<unsigned int, unsigned long>>();
+    for (const unsigned int& vertex_num : _graph_to_transform->get_nodes_numbers())
+    {
+		_connects_count->insert(vertex_num, 0);
+    }
+
     NodePaintOptions opts(start_x, start_y);
     QQueue<NodePaintOptions> positions;
 
@@ -141,7 +147,8 @@ void GraphPainter::calculate_one_point(QSharedPointer<GraphNode>& _node, int lev
 		_node->set_additional_data(QVariant::fromValue(pos));
 
 		log((boost::format("Calculating new positions for child nodes of %d node!") % _node->get_number()).str());
-		int size_count = _node->get_connected_nodes_nums().size();
+		QList<unsigned int> linked_nodes = _node->get_connected_nodes_nums();
+        int size_count = linked_nodes.size();
 
         if (size_count > 0) {
 			double dx = this->_options->getText_box_h() + this->_options->getH_spacing(),
@@ -159,6 +166,9 @@ void GraphPainter::calculate_one_point(QSharedPointer<GraphNode>& _node, int lev
 				_options.setX(_options.getX());
 				_options.setY(_options.getY() - dx);
 			}
+
+            std::for_each(linked_nodes.begin(), linked_nodes.end(),
+                          [this](const unsigned int& vertex_num){ this->_connects_count->operator[](vertex_num)++; });
         }
 
 		log("Node ready!");
@@ -181,9 +191,10 @@ void GraphPainter::paint_on(QQuickItem* widget)
 
     log((boost::format("Painting on %s widget.") % parent_name.toStdString()).str());
 
+    unsigned int dx = 2;
     _graph_to_transform->bfs_no_result(
                	boost::bind(&GraphPainter::paint_one_node, this,
-                            boost::placeholders::_1, boost::placeholders::_2, widget, &_nodes));
+                            boost::placeholders::_1, boost::placeholders::_2, widget, &_nodes, &dx));
 
     log("Painting finished!");
 }
@@ -261,13 +272,32 @@ void GraphPainter::create_lines_for_node(QSharedPointer<GraphNode>& _node, int l
 				QList<QPointF> _line = config_line(_widget, nodes->value(index, nullptr), canvas);
 
                 if (!_line.empty()) {
-					QPoint point = _line[0].toPoint();
-					if (_points_exists->contains(point))
+                    bool is_ended = false;
+                    while (!is_ended) {
+						for (int i = 0; i < _line.size() - 2; i += 2)
+                        {
+                            QPoint _point = _line[i].toPoint();
+                            if (_points_exists->contains(_point))
+                            {
+                                std::for_each(_line.begin(), _line.end(),
+                                        		[](QPointF& point) {
+													point.setY(point.y() + 15);
+											});
+
+                                is_ended = false;
+                                break;
+                            }
+                            else {
+                                is_ended = true;
+                            }
+                        }
+                    }
+
+					for (int i = 0; i < _line.size() - 2; i += 2)
 					{
-						std::for_each(_line.begin(), _line.end(), [](QPointF& _point) { _point.setY(_point.y() + 5); });
+						_points_exists->insert(_line[i].toPoint());
 					}
 
-					_points_exists->insert(point);
                 }
 
 				log("Lines count: " + std::to_string(_line.size()) + " of node #" + std::to_string(_node->get_number()));
@@ -277,7 +307,7 @@ void GraphPainter::create_lines_for_node(QSharedPointer<GraphNode>& _node, int l
     }
 }
 
-void GraphPainter::paint_one_node(QSharedPointer<GraphNode>& _node, int level, QQuickItem* parent_widget, QMap<unsigned int, QQuickItem*>* _nodes)
+void GraphPainter::paint_one_node(QSharedPointer<GraphNode>& _node, int level, QQuickItem* parent_widget, QMap<unsigned int, QQuickItem*>* _nodes, unsigned int* _dx)
 {
     auto _get_description = [](GraphNode& child_node) {
 		QVariant _var_obj = child_node.additional_data();
@@ -300,6 +330,16 @@ void GraphPainter::paint_one_node(QSharedPointer<GraphNode>& _node, int level, Q
 
 		QQuickItem* _widget;
 		unsigned int index = _node->get_number();
+
+        if (_connects_count->operator[](index) > 1)
+        {
+            double old_y = _pos.getY();
+            old_y += _options->getDistance() * static_cast<double>(*_dx);
+
+            _pos.setY(old_y);
+            _dx++;
+        }
+
 		if (!_nodes->contains(index))
 		{
             log("Creating widget...");
@@ -324,10 +364,6 @@ void GraphPainter::paint_one_node(QSharedPointer<GraphNode>& _node, int level, Q
                 }
 			}
 		}
-        else {
-            log("Getting widget...");
-            _widget = _nodes->value(index, nullptr);
-        }
 	}
 	catch (const std::exception& error)
 	{
@@ -371,38 +407,156 @@ void GraphPainter::set_size(QQuickItem *_to_transform)
 
 QList<QPointF> GraphPainter::config_line(QQuickItem *_first_widget, QQuickItem *_second_widget, QQuickItem* canvas)
 {
+    if (canvas == _first_widget || canvas == _second_widget)
+    {
+        return QList<QPointF>();
+    }
+
 	log("Choosen canvas object: " + canvas->objectName().toStdString());
 
     if (_first_widget != _second_widget) {
+        log("Start line configuring...");
 		QPointF _pos_1, _pos_2;
 
-        if (_first_widget->x() > _second_widget->x())
-        {
-            _pos_1 = calculate_center_of_side(_second_widget, _Side::Right);
-        	_pos_2 = calculate_center_of_side(_first_widget, _Side::Left);
-        }
-        else if (_first_widget->x() < _second_widget->x()){
-            _pos_1 = calculate_center_of_side(_first_widget, _Side::Right);
-        	_pos_2 = calculate_center_of_side(_second_widget, _Side::Left);
-        }
-        else {
-            return QList<QPointF>();
-        }
+        double x_f = _first_widget->x(), y_f = _first_widget->y();
+        double x_s = _second_widget->x(), y_s = _second_widget->y();
+
+        double substract_between_y = y_f - y_s;
+		double substract_between_x = x_f - x_s;
+        log((boost::format("Subtract between points on x: %lf") % substract_between_x).str());
+        log((boost::format("Subtract between points on y: %lf") % substract_between_y).str());
+
+        _Side _first_wid_side = first_side_choose(substract_between_x, substract_between_y);
+        _Side _second_wid_side = second_side_choose(substract_between_x, substract_between_y);
+
+        _pos_1 = calculate_center_of_side(_first_widget, _first_wid_side);
+        _pos_2 = calculate_center_of_side(_second_widget, _second_wid_side);
 
 		log_debug("Calculating distance...");
+        double _distance_x = _pos_2.x() - _pos_1.x();
+        double _distance_y = _pos_2.y() - _pos_1.y();
 
-		double distance = std::abs(_pos_1.x() - _pos_2.x());
-		QList<QPointF> _lines_pos {
-			_pos_1,
-			QPointF(_pos_1.x() + distance / 2, _pos_1.y()),
-			QPointF(_pos_1.x() + distance / 2, _pos_2.y()),
-			_pos_2
-		};
+        QPointF _pos_4, _pos_3;
+        if (_first_wid_side == _Side::Left || _first_wid_side == _Side::Right) {
+			_pos_4 = QPointF(_pos_1.x() + _distance_x / 2, _pos_2.y());
+			_pos_3 = QPointF(_pos_1.x() + _distance_x / 2, _pos_1.y());
+        }
+		else {
+			_pos_4 = QPointF(_pos_1.x(), _pos_2.y());
+			_pos_3 = QPointF(_pos_1.x(), _pos_1.y() + _distance_y / 2);
+        }
 
+        log_debug("Positions of line are ready...");
+        QList<QPointF> _lines_pos{
+            _pos_1,
+            _pos_3,
+            _pos_4,
+            _pos_2,
+        };
+        _lines_pos.append(get_arrow_points(_pos_4, _pos_2, 5, 10));
+
+        log_debug("Line ready! Point count: " + std::to_string(_lines_pos.size()));
 		return _lines_pos;
     }
 
+	log_debug("Line ready!");
     return QList<QPointF>();
+}
+
+QList<QPointF> GraphPainter::get_arrow_points(QPointF point_start, QPointF point_end_, double dx, double dy)
+{
+    QPointF point_start_fict(point_start.x() - dx, point_start.y());
+    QPointF point_end_fict(point_start.x() + dx, point_start.y());
+    QPointF vector_1(point_end_fict - point_start_fict);
+    QPointF vector_base(point_end_ - point_start);
+
+    double direction = std::sqrt(std::pow(vector_base.x(), 2) + std::pow(vector_base.y(), 2));
+    dy = direction - dy;
+    QPointF direction_vec(vector_base.x() / direction, vector_base.y() / direction);
+    if (multiply_check(vector_1, vector_base))
+    {
+        return {point_start_fict + direction_vec * dy, point_end_fict + direction_vec * dy};
+    }
+
+    point_start_fict = QPointF(point_start.x(), point_start.y() - dx);
+    point_end_fict = QPointF(point_start.x(), point_start.y() + dx);
+    vector_1 = QPointF(point_end_fict - point_start_fict);
+
+    if (multiply_check(vector_1, vector_base))
+    {
+        return {point_start_fict + direction_vec * dy, point_end_fict + direction_vec * dy};
+    }
+
+    return QList<QPointF>();
+}
+
+bool GraphPainter::multiply_check(QPointF vector_1, QPointF vector_2)
+{
+    double _multiply_vectors = multiply_point_vectors(vector_1, vector_2);
+
+    if (static_cast<int>(std::abs(_multiply_vectors)) == 0) {
+        return true;
+    }
+
+    return false;
+}
+
+double GraphPainter::multiply_point_vectors(QPointF vector_1, QPointF vector_2)
+{
+    double vector_multiply = vector_1.x() * vector_2.x() + vector_1.y() * vector_2.y();
+    log("Vector multiply result = " + std::to_string(vector_multiply));
+
+    return vector_multiply;
+}
+
+GraphPainter::_Side GraphPainter::first_side_choose(double substract_between_x, double substract_between_y)
+{
+	log("Input x substract: " + std::to_string(substract_between_x));
+    log("Input y substract: " + std::to_string(substract_between_y));
+
+    if (substract_between_x > _min_distance_to_top && substract_between_y > _min_distance_in_height)
+    {
+        return _Side::Top;
+    }
+    else if (substract_between_x > _min_distance_to_top && substract_between_y < -_min_distance_in_height)
+	{
+		return _Side::Bottom;
+	}
+    else if (substract_between_x > _min_distance_to_top)
+	{
+		return _Side::Left;
+	}
+    else if (substract_between_x < -_min_distance_to_top)
+	{
+		return _Side::Right;
+	}
+    else if (substract_between_y > _min_distance_in_height) {
+        return _Side::Bottom;
+	}
+	else if (substract_between_y < -_min_distance_in_height){
+		return _Side::Top;
+	}
+}
+
+GraphPainter::_Side GraphPainter::second_side_choose(double substract_between_x, double substract_between_y)
+{
+    log("Input x substract: " + std::to_string(substract_between_x));
+    log("Input y substract: " + std::to_string(substract_between_y));
+
+    if (substract_between_x > _min_distance_to_top)
+	{
+		return _Side::Right;
+	}
+    else if (substract_between_x < -_min_distance_to_top)
+	{
+		return _Side::Left;
+	}
+    else if (substract_between_y > _min_distance_in_height) {
+        return _Side::Top;
+	}
+	else if (substract_between_y < -_min_distance_in_height){
+		return _Side::Bottom;
+	}
 }
 
 QPointF GraphPainter::calculate_center_of_side(QQuickItem* _widget, _Side _side)
@@ -428,6 +582,18 @@ QPointF GraphPainter::calculate_center_of_side(QQuickItem* _widget, _Side _side)
 			return QPointF(result_x, result_y);
     	}
 		break;
+    case _Side::Top:
+    	{
+        	double result_x = _x + width / 2, result_y = _y;
+            return QPointF(result_x, result_y);
+    	}
+        break;
+    case _Side::Bottom:
+		{
+        	double result_x = _x + width / 2, result_y = _y + height;
+            return QPointF(result_x, result_y);
+		}
+        break;
 
     default:
         throw std::logic_error("Unknown side!");

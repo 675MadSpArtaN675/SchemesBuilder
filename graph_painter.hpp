@@ -14,6 +14,7 @@
 
 #include "graph_data.hpp"
 #include "CoreLogger.hpp"
+#include "abstractsaver.hpp"
 
 class GraphOptions : public QObject
 {
@@ -148,8 +149,17 @@ public:
 protected:
     enum class _Side {
     	Left,
-        Right
+        Right,
+        Top,
+        Bottom
 	};
+    _Side first_side_choose(double substract_between_x, double substract_between_y);
+	_Side second_side_choose(double substract_between_x, double substract_between_y);
+
+	double multiply_point_vectors(QPointF point_1, QPointF point_2);
+	bool multiply_check(QPointF vector_1, QPointF vector_2);
+
+	QList<QPointF> get_arrow_points(QPointF point_start, QPointF point_end, double dx, double dy);
 
     QPointF calculate_center_of_side(QQuickItem* _widget, _Side _side);
 
@@ -157,7 +167,7 @@ protected:
     QQuickItem* create_box(GraphNode _node, QString descr = QString(), QQuickItem* parent = nullptr);
 
     void calculate_one_point(QSharedPointer<GraphNode>& _node, int level, QQueue<NodePaintOptions>& positions, double& dx, NodePaintOptions* start_position);
-    void paint_one_node(QSharedPointer<GraphNode>& _node, int level, QQuickItem* parent_widget, QMap<unsigned int, QQuickItem*>* _nodes);
+    void paint_one_node(QSharedPointer<GraphNode>& _node, int level, QQuickItem* parent_widget, QMap<unsigned int, QQuickItem*>* _nodes, unsigned int* _dx);
     void create_lines_for_node(QSharedPointer<GraphNode>& _node, int level, QList<QList<QPointF>>* points, QMap<unsigned int, QQuickItem*>* nodes, QSet<QPoint>* _points_exists,  QQuickItem* canvas);
 
 	QList<GraphNode> get_nodes(QList<QWeakPointer<GraphNode>> _child_nodes);
@@ -166,7 +176,8 @@ protected:
 	void set_size(QQuickItem* _to_transform);
     QList<QPointF> config_line(QQuickItem* _first_widget, QQuickItem* _second_widget, QQuickItem* canvas);
 
-
+    std::unique_ptr<AbstractSaver> _saver;
+	std::unique_ptr<QMap<unsigned int, unsigned long>> _connects_count;
     std::unique_ptr<graph_data> _graph_to_transform;
     std::unique_ptr<GraphOptions> _options;
 
@@ -176,6 +187,7 @@ protected:
     QQmlEngine* _engine;
 
     double _difference_between_start_points;
+    double _min_distance_to_top{5}, _min_distance_in_height{5};
 };
 
 #endif // GRAPH_PAINTER_H

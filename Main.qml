@@ -129,8 +129,10 @@ Window {
 						let dx = 6;
 						let existed_points = new Set();
                         for (let line of line_points) {
-							let line_len = line.length - 1;
-                            for (let i = 0; i < line_len; i++ ) {
+							let line_len = line.length;
+							for (let i = 0; i < line_len - 2; i++ ) {
+								console.log(`Iter: ${i}`);
+
                                 let _point_1 = line[i];
                                 let _point_2 = line[i + 1];
 
@@ -138,22 +140,26 @@ Window {
 								ctx.moveTo(_point_1.x, _point_1.y);
 								ctx.lineTo(_point_2.x, _point_2.y);
 
-								if (line_len - 2 < i) {
-									let end_y_1 = _point_2.y + 5, end_y_2 = _point_2.y - 5;
-									let end_x = _point_2.x - 10;
-
-									ctx.moveTo(end_x, end_y_1);
-									ctx.lineTo(_point_2.x, _point_2.y);
-
-									ctx.moveTo(end_x, end_y_2);
-									ctx.lineTo(_point_2.x, _point_2.y);
-								}
-
 								ctx.strokeStyle = Qt.rgba(0, 0, 0, 1);
 								ctx.lineWidth = 1;
 								ctx.stroke();
-                                ctx.closePath();
                             }
+
+							let point_first = line[line_len - 2];
+							let point_center = line[line_len - 3];
+							let point_third = line[line_len - 1];
+
+							console.log(`F: ${point_first}\n\tS: ${point_third}\n\tCen: ${point_center}`);
+
+							ctx.moveTo(point_first.x, point_first.y);
+							ctx.lineTo(point_center.x, point_center.y);
+
+							ctx.moveTo(point_third.x, point_third.y);
+							ctx.lineTo(point_center.x, point_center.y);
+
+							ctx.strokeStyle = Qt.rgba(0, 0, 0, 1);
+							ctx.lineWidth = 1;
+							ctx.stroke();
                         }
 
                         console.log("Done");
@@ -197,7 +203,12 @@ Window {
 
 					defaultSuffix: ".png"
 
-					onAccepted: {
+					function save_to_drawio()
+					{
+
+					}
+
+					function save_to_image() {
 						let file = selectedFile;
 
 						graph_paint_area.grabToImage(
@@ -243,7 +254,21 @@ Window {
 
 					text: "Сохранить граф как изображение"
 
-					onClicked: graph_image_saver.open()
+					onClicked: {
+						graph_image_saver.accepted = graph_image_saver.save_to_image();
+						graph_image_saver.open();
+					}
+				}
+
+				Button {
+					width: parent.width * 1.2
+					height: 40
+
+					text: "Сохранить"
+
+					onClicked: {
+						graph_image_saver.open();
+					}
 				}
 			}
 
