@@ -16,6 +16,9 @@
 #include "graph_data.hpp"
 #include "graph_painter.hpp"
 
+#include "abstractsaver.hpp"
+#include "drawiosaver.hpp"
+
 #include "tablereader.hpp"
 #include "tableformer.hpp"
 
@@ -29,6 +32,12 @@ class GraphBuilder : public QObject, protected CoreLogger
     Q_PROPERTY(TableReader* reader READ reader WRITE set_reader)
 
 public:
+    enum class SaverTypes{
+        None,
+        DrawIO,
+    };
+    Q_ENUM(SaverTypes)
+
     using vector2d = std::vector<std::vector<int>>;
     using int_hmdf_matrix = hmdf::Matrix<int>;
 
@@ -55,6 +64,7 @@ public:
     Q_INVOKABLE bool is_empty();
     Q_INVOKABLE GraphBuilder& clear();
 
+    Q_INVOKABLE void save_graph(QString file_path, SaverTypes _type);
     Q_INVOKABLE graph_data* build_ptr();
     Q_INVOKABLE graph_data build();
 
@@ -81,6 +91,8 @@ protected:
     QMap<unsigned int, GraphNode> _temp_nodes;
     QMap<unsigned int, QSet<unsigned int>> _nodes_links;
 
+    SaverTypes _saver_cached_type;
+    std::unique_ptr<AbstractSaver> _saver;
     std::unique_ptr<graph_data> _cache;
 };
 

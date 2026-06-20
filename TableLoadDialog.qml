@@ -55,6 +55,10 @@ Window {
         }
     }
 
+	function save(path, saver_type) {
+		builder.save_graph(path.toString(), saver_type);
+	}
+
 	function clear_cache() {
 		console.log("Clearing table...");
 		table_frame.clear_grid();

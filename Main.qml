@@ -205,7 +205,7 @@ Window {
 
 					function save_to_drawio()
 					{
-
+						loader_sub_window.save(selectedFile, GraphBuilder.DrawIO);
 					}
 
 					function save_to_image() {
@@ -255,7 +255,7 @@ Window {
 					text: "Сохранить граф как изображение"
 
 					onClicked: {
-						graph_image_saver.accepted = graph_image_saver.save_to_image();
+						graph_image_saver.accepted = graph_image_saver.save_to_image;
 						graph_image_saver.open();
 					}
 				}
@@ -264,9 +264,10 @@ Window {
 					width: parent.width * 1.2
 					height: 40
 
-					text: "Сохранить"
+					text: "Сохранить под другой редактор..."
 
 					onClicked: {
+						graph_image_saver.accepted = graph_image_saver.save_to_drawio;
 						graph_image_saver.open();
 					}
 				}

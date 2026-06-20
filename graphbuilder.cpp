@@ -385,6 +385,32 @@ GraphBuilder &GraphBuilder::clear()
     return *this;
 }
 
+void GraphBuilder::save_graph(QString file, SaverTypes _type)
+{
+    QRegularExpression _pattern("qrc:\\{3}");
+    if (_type != _saver_cached_type) {
+		switch(_type)
+		{
+			case SaverTypes::DrawIO:
+				_saver.reset(new DrawioSaver());
+				break;
+
+			default:
+				break;
+		}
+
+		_saver->load_options("drawio_options.dat");
+		_saver_cached_type = _type;
+    }
+
+    if (_type > SaverTypes::None)
+    {
+        QString file_name_ready = file.replace(_pattern, "");
+
+        _saver->save(file);
+    }
+}
+
 graph_data* GraphBuilder::build_ptr()
 {
     if (_temp_nodes.size() > 0) {
