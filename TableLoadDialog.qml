@@ -56,6 +56,7 @@ Window {
     }
 
 	function save(path, saver_type) {
+		console.log("Saving graph to file: ", path.toString());
 		builder.save_graph(path.toString(), saver_type);
 	}
 

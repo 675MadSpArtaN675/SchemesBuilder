@@ -1,19 +1,40 @@
 #include "abstractsaver.hpp"
 
 
+QString escapeXml(const QString &str)
+{
+    QString xml = str;
+
+    xml.replace("&", "&amp;");
+    xml.replace("<", "&lt;");
+    xml.replace(">", "&gt;");
+    xml.replace("'", "&apos;");
+    xml.replace("\"", "&quot;");
+
+    return xml;
+}
+
 AbstractSaver::AbstractSaver(QObject *parent)
     : QObject{parent}, CoreLogger()
 {
     _elements = std::make_unique<QMap<QString, QString>>(QMap<QString, QString>({ std::pair<QString, QString>("base", QString())}));
 }
 
+AbstractSaver::~AbstractSaver()
+{ }
+
 void AbstractSaver::load_options(QString filename)
 {
-    filename = filename.nullTerminate().trimmed();
+    filename = remove_prefix_for_resource_path(filename.nullTerminate().trimmed());
     log((boost::format("Loading options of saver from file \"%s\"") % filename.toStdString()).str());
 
-    if (filename.isEmpty() || !QFile::exists(filename) || QFile::permissions(filename) == QFileDevice::ReadUser)
+    QFile::Permissions _perms = QFile::permissions(filename);
+    QFile::Permissions _need_perms = _perms & QFileDevice::ReadOwner;
+
+    log("File permissions: " + std::to_string(_perms));
+    if (filename.isEmpty() || !QFile::exists(filename) || _need_perms != QFileDevice::ReadOwner)
     {
+        log_error("File not found or user has not permissions!");
         return;
     }
 
@@ -36,11 +57,12 @@ void AbstractSaver::load_options(QString filename)
 
 void AbstractSaver::save(QString filename)
 {
-    filename = filename.nullTerminate().trimmed();
+    filename = remove_prefix_for_resource_path(filename.nullTerminate().trimmed());
     log((boost::format("Saving graph to file: \"%s\"") % filename.toStdString()).str());
 
     if (filename.isEmpty())
     {
+        log_error("File name is empty!");
         return;
     }
 
@@ -90,7 +112,17 @@ QVariant AbstractSaver::get_option_value(QString _key)
 
 bool AbstractSaver::is_base_element_load()
 {
-	return (*_elements)["base"].nullTerminate().trimmed().isEmpty();
+    log("Base element: " + (*_elements)["base"].nullTerminate().trimmed().toStdString());
+	return !(*_elements)["base"].nullTerminate().trimmed().isEmpty();
+}
+
+bool AbstractSaver::is_ready()
+{
+    log("Is empty: " + std::to_string(_elements->empty()));
+    log("Is base element loaded: " + std::to_string(is_base_element_load()));
+    log("Elements size: " + std::to_string(_elements->size()));
+
+	return is_base_element_load() && !_elements->empty() && _elements->size() > 1;
 }
 
 void AbstractSaver::clear()
@@ -136,6 +168,7 @@ void AbstractSaver::options_loading_logic(QFile &file)
 	while (!file.atEnd())
     {
 		QString line = file.readLine().nullTerminate().trimmed();
+        log_debug("Line: " + line.toStdString());
 
         if (line.isEmpty())
         {
@@ -148,6 +181,7 @@ void AbstractSaver::options_loading_logic(QFile &file)
             QString name = _match.captured("option_name").nullTerminate().trimmed();
 
             if (!name.isEmpty() && !_elements->contains(name)) {
+                log_debug("Name: " + name.toStdString());
 				QString result = _match.captured("option_result").nullTerminate().trimmed();
 
 				set_option(name, result);
@@ -156,15 +190,19 @@ void AbstractSaver::options_loading_logic(QFile &file)
             }
             else if (!name.isEmpty() && _elements->contains(name))
             {
+                log_debug("Name: " + name.toStdString());
                 add_result_to_option(name, _match.captured("option_result"));
+				previous_name = name;
             }
             else
             {
+                log_debug("Name: " + previous_name.toStdString());
                 add_result_to_option(previous_name, _match.captured("option_result"));
 			}
         }
         else
 		{
+			log_debug("Name: " + previous_name.toStdString());
 			add_result_to_option(previous_name, line);
 		}
     }
@@ -185,7 +223,7 @@ void AbstractSaver::add_result_to_option(const QString& _key, const QString& _re
     std::string _trimmed_result;
 	boost::algorithm::trim_copy_if(
 				std::back_inserter(_trimmed_result),
-				_result,
+				_result.toStdString(),
 				boost::is_any_of(": \n\t")
     );
 

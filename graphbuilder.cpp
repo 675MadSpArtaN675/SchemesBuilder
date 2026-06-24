@@ -387,27 +387,37 @@ GraphBuilder &GraphBuilder::clear()
 
 void GraphBuilder::save_graph(QString file, SaverTypes _type)
 {
-    QRegularExpression _pattern("qrc:\\{3}");
-    if (_type != _saver_cached_type) {
-		switch(_type)
-		{
-			case SaverTypes::DrawIO:
-				_saver.reset(new DrawioSaver());
-				break;
+    log((boost::format("File: %s. Type: %s") % file.toStdString() % std::to_string(static_cast<int>(_type))).str());
+    if (_type > SaverTypes::None && !file.isEmpty())
+    {
+        log_debug("Performing file...");
+		if (_type != _saver_cached_type) {
+            log_debug("Choosing type...");
+			switch(_type)
+			{
+				case SaverTypes::DrawIO:
+					_saver.reset(new DrawioSaver());
+					break;
 
-			default:
-				break;
+				default:
+					break;
+			}
+
+            if (_cache) {
+				_saver->set_graph(_cache.get());
+            }
+
+			_saver->load_options("drawio_options.dat");
+			_saver_cached_type = _type;
 		}
 
-		_saver->load_options("drawio_options.dat");
-		_saver_cached_type = _type;
-    }
+        log_debug("Saving...");
+        if (_saver && _saver->is_ready()) {
+			QString file_name_ready = remove_prefix_for_resource_path(file);
+            log_debug("Saving to: " + file_name_ready.toStdString());
 
-    if (_type > SaverTypes::None)
-    {
-        QString file_name_ready = file.replace(_pattern, "");
-
-        _saver->save(file);
+			_saver->save(file);
+        }
     }
 }
 
@@ -454,6 +464,7 @@ graph_data* GraphBuilder::build_ptr()
             log_debug(_log_vertexes.str());
         }
 
+        _cache.reset(_data);
         return _data;
     }
 
@@ -517,5 +528,4 @@ unsigned int GraphBuilder::get_max_index()
         return 1;
     }
     return *std::max_element(builder_nodes.begin(), builder_nodes.end());
-;
 }

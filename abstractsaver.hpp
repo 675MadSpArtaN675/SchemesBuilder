@@ -24,6 +24,8 @@
 #include "graph_data.hpp"
 #include "graphnode.hpp"
 
+QString escapeXml(const QString &str);
+
 class AbstractSaver : public QObject, protected CoreLogger
 {
     Q_OBJECT
@@ -34,6 +36,7 @@ class AbstractSaver : public QObject, protected CoreLogger
 
 public:
     explicit AbstractSaver(QObject *parent = nullptr);
+    virtual ~AbstractSaver();
 
     Q_INVOKABLE void load_options(QString filename);
     Q_INVOKABLE void save(QString filename);
@@ -42,6 +45,7 @@ public:
     Q_INVOKABLE QVariant get_option_value(QString _key);
 
     Q_INVOKABLE bool is_base_element_load();
+    Q_INVOKABLE bool is_ready();
 
     Q_INVOKABLE void clear();
 

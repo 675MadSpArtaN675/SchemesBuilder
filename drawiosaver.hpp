@@ -1,7 +1,7 @@
 #ifndef DRAWIOSAVER_HPP
 #define DRAWIOSAVER_HPP
 
-constexpr unsigned int multiply_elements = 2;
+constexpr unsigned int multiply_elements = 2, width = 150, height = 75;
 
 #include <QObject>
 #include <QQmlEngine>

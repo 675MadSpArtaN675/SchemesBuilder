@@ -536,6 +536,8 @@ GraphPainter::_Side GraphPainter::first_side_choose(double substract_between_x, 
 	else if (substract_between_y < -_min_distance_in_height){
 		return _Side::Top;
 	}
+
+    return _Side::Top;
 }
 
 GraphPainter::_Side GraphPainter::second_side_choose(double substract_between_x, double substract_between_y)
@@ -557,6 +559,8 @@ GraphPainter::_Side GraphPainter::second_side_choose(double substract_between_x,
 	else if (substract_between_y < -_min_distance_in_height){
 		return _Side::Bottom;
 	}
+
+    return _Side::Top;
 }
 
 QPointF GraphPainter::calculate_center_of_side(QQuickItem* _widget, _Side _side)

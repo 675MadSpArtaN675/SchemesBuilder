@@ -173,7 +173,6 @@ Window {
                 if (graph_paint_area.children.length > 0)
 				{
 					painter.clear_cache();
-					loader_sub_window.clear_cache();
 
                     graph_paint_area.line_points = [];
                     graph_paint_area.requestPaint();
@@ -199,9 +198,6 @@ Window {
 					id: graph_image_saver
 
 					fileMode: FileDialog.SaveFile
-					nameFilters: ["PNG image (*.png)", "JPG/JPEG image (*.jpg *.jpeg)"]
-
-					defaultSuffix: ".png"
 
 					function save_to_drawio()
 					{
@@ -254,7 +250,10 @@ Window {
 
 					text: "Сохранить граф как изображение"
 
-					onClicked: {
+					onClicked: function () {
+						graph_image_saver.efaultSuffix = ".png";
+						graph_image_saver.ameFilters = ["PNG image (*.png)", "JPG/JPEG image (*.jpg *.jpeg)"];
+
 						graph_image_saver.accepted = graph_image_saver.save_to_image;
 						graph_image_saver.open();
 					}
@@ -266,8 +265,11 @@ Window {
 
 					text: "Сохранить под другой редактор..."
 
-					onClicked: {
-						graph_image_saver.accepted = graph_image_saver.save_to_drawio;
+					onClicked: function() {
+						graph_image_saver.defaultSuffix = ".drawio";
+						graph_image_saver.nameFilters = ["Drawio file (*.drawio)"];
+
+						graph_image_saver.accepted.connect(graph_image_saver.save_to_drawio);
 						graph_image_saver.open();
 					}
 				}

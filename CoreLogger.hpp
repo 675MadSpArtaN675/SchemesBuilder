@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include <QList>
+#include <QRegularExpression>
 
 #include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
@@ -80,5 +81,22 @@ protected:
     boost::log::record _rec;
     boost::log::core_ptr _logger;
 };
+
+inline QString remove_prefix_for_resource_path(QString filename)
+{
+    QRegularExpression _pattern("^((file|qrc):[\\\\/]{, 2})");
+    QRegularExpression _pattern_1("\\w:\\?");
+
+    filename = filename.trimmed();
+	QString file_path = filename.replace(_pattern, "");
+    if (!_pattern_1.match(filename).hasMatch()) {
+		return file_path.trimmed();
+    }
+    else {
+        std::string trimmed_line = boost::algorithm::trim_copy_if(file_path.toStdString(), boost::algorithm::is_any_of("\\/ \n\t"));
+
+        return QString::fromStdString(trimmed_line);
+    }
+}
 
 #endif //
